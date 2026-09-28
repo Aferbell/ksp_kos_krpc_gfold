@@ -256,9 +256,11 @@ CTRL_X_ROT_KD = 2.5
 CTRL_Z_ROT_KP = 2.0
 CTRL_Z_ROT_KD = 2.5
 CTRL_Y_AVEL_KP = 2.0
-# 【新增】俯仰/偏航的机身角速度阻尼增益（rad/s -> 控制量）
-CTRL_X_AVEL_KD = 1.0
-CTRL_Z_AVEL_KD = 1.0
+# 【已撤回】曾加 CTRL_X_AVEL_KD / CTRL_Z_AVEL_KD = 1.0 作为俯仰/偏航的
+#   机身角速度阻尼。实飞 gfold_log_20260928_214050.csv 证明【有害】：
+#   它同时对抗了"跟随指令所需的合法转动"，使 45 帧（|err_z|>25 时）的
+#   权限被削减，飞行时长 20.5 -> 24.3 s、avel 85.8 -> 158.0 deg/s。
+#   详见 apply() 里那段撤回说明。
 
 # ================================================================
 # ---- 等待首解期间的减速保持（hold 段）----
@@ -567,9 +569,6 @@ class Logger:
             'pid_err_x', 'pid_err_z',
             'pid_px', 'pid_dx', 'pid_ix',
             'pid_out_x', 'pid_out_z', 'pid_out_r',
-            # 【2026-09-28 新增】机身角速度阻尼项（俯仰/偏航）。
-            #   与 pid_out_* 分开记，才能判断"输出是 P/D 给的还是阻尼给的"。
-            'pid_damp_x', 'pid_damp_z',
             'avel_p', 'avel_r', 'avel_y',
             # ---- ⑦ 参考轨迹索引诊断（2026-09-28 修 n_i 冻结）----
             #   idx_raw   : find_nearest_index 的原始投影（未加地板/单调）
@@ -753,9 +752,6 @@ class GfoldLander:
         self._sat_run = 0
         # gfold 段本帧的油门下限（比例），供 atq_floor 判断用
         self.thr_floor_last = float('nan')
-        # 【2026-09-28】俯仰/偏航的机身角速度阻尼项（落日志供验证符号与幅度）
-        self.dbg_pid_damp_x = float('nan')
-        self.dbg_pid_damp_z = float('nan')
         # 【2026-09-27 新增】参考轨迹采样点与真实跟踪误差（见 track() 赋值）。
         self.dbg_n_i = float('nan')
         self.dbg_plan_alt = float('nan')
@@ -1881,12 +1877,40 @@ class GfoldLander:
             #   即"角速度为正时施加反向力矩"——这就是阻尼。
             #   实际符号正确性由实飞日志的 pid_damp_* 列与姿态收敛性判定。
             # ============================================================
-            _damp_x = float(avel_local[0]) * CTRL_X_AVEL_KD
-            _damp_z = float(avel_local[2]) * CTRL_Z_AVEL_KD
-            cp_ = _clamp(cp_ - _damp_x, 1, -1)
-            cy_ = _clamp(cy_ - _damp_z, 1, -1)
-            self.dbg_pid_damp_x = float(-_damp_x)
-            self.dbg_pid_damp_z = float(-_damp_z)
+            # ============================================================
+            # 【2026-09-28 撤回：俯仰/偏航的机身角速度阻尼【已被实飞证伪】】
+            # ------------------------------------------------------------
+            # 曾在此加入 _damp_x/_damp_z = avel * CTRL_X/Z_AVEL_KD 并从
+            # cp_/cy_ 中减去。实飞 gfold_log_20260928_214050.csv 证明【有害】：
+            #
+            # 【为什么会错】滚转通道写 rate->0 是对的，因为【滚转没有指令
+            #   转动】；但俯仰/偏航【有指令转动】（tilt_cmd 会在 25 -> 1.8
+            #   之间跳变，载具必须跟着转）。照抄滚转公式，等于让阻尼项
+            #   【同时对抗合法跟踪所需的转动】。
+            #
+            # 【实飞数据】在 |pid_err_z| > 25 deg 的帧里：
+            #     阻尼【削减】了权限的：45 帧
+            #     阻尼未削减权限的  ：18 帧
+            #   例：t=9.18 err=34.1 out=0.58 damp=0.442
+            #         -> P+D 本应给 1.02，被削到 0.58
+            #       t=12.84 err=-32.0 out=-1.00 damp=-0.039
+            #         -> 阻尼反向，把输出推得更负
+            #
+            # 【后果】姿态跟不上 -> 误差更大 -> 又被阻尼削弱 -> 越追越慢：
+            #     飞行时长 20.5 -> 24.3 s
+            #     avel 最大 85.8 -> 158.0 deg/s
+            #     att_err 最大 73.2 -> 149.8 deg
+            #     落地 tilt 94.7 -> 131.6 deg
+            #   匹配高度重比后发现低空（alt<300）明显恶化，而那正是最要命的段。
+            #
+            # 【注意】同一轮把 KP 5.0 -> 2.0 是【有效】的：
+            #     pid_sat_z 饱和 73 -> 31 帧，早期(t<8) avel 28.4 -> 10.4。
+            #   但降 KP 的收益被这个阻尼污染了，无法单独评估，故本轮【只撤
+            #   阻尼、保留 KP=2.0】，一次只改一个变量。
+            #
+            # 【正确做法（未实现）】若要阻尼，只能阻尼【超调部分】，即
+            #   (avel - 指令转动速率)，这需要引入指令速率前馈。先不做。
+            # ============================================================
             cr_ = _clamp(float(avel_local[1]) * CTRL_Y_AVEL_KP, 1, -1)
             # 落日志：PID 输入(rad/deg) + 三项 + 最终控制量
             self.dbg_pid_err_x = math.degrees(err_x)
@@ -2147,8 +2171,6 @@ class GfoldLander:
             pid_out_x=_f(getattr(self, 'dbg_pid_out_x', None), 4),
             pid_out_z=_f(getattr(self, 'dbg_pid_out_z', None), 4),
             pid_out_r=_f(getattr(self, 'dbg_pid_out_r', None), 4),
-            pid_damp_x=_f(getattr(self, 'dbg_pid_damp_x', None), 4),
-            pid_damp_z=_f(getattr(self, 'dbg_pid_damp_z', None), 4),
             # 【写法】先取一次局部量再索引，避免 Pylance 对
             #   "getattr(..., default)[i]" 推断成 Any/Optional 而报错。
             avel_p=_av_c(0), avel_r=_av_c(1), avel_y=_av_c(2),
