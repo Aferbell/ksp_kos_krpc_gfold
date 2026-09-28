@@ -1,0 +1,4083 @@
+[
+ {
+  "part": "TPtank3mL05625_4292090108",
+  "pos": [
+   0.122107267,
+   41.0006714,
+   0.176408052
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": -1.50874257e-07,
+  "modules": [
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleB9PartSwitch",
+   "ModuleCryoTank",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "LiquidFuel",
+    4860.0,
+    4860.0
+   ],
+   [
+    "Oxidizer",
+    5940.0,
+    5940.0
+   ]
+  ]
+ },
+ {
+  "part": "HotGasThruster-L_4292017334",
+  "pos": [
+   -1.14658475,
+   43.8256798,
+   1.44509649
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292010300",
+  "pos": [
+   1.39079809,
+   43.8256798,
+   1.44509864
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292010216",
+  "pos": [
+   1.39079833,
+   43.8256912,
+   -1.09228289
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292010132",
+  "pos": [
+   -1.14657748,
+   43.8256912,
+   -1.0922879
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292009698",
+  "pos": [
+   -1.14732385,
+   38.1800728,
+   1.44583106
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292007916",
+  "pos": [
+   1.39153743,
+   38.1800728,
+   1.44583464
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292007834",
+  "pos": [
+   1.3915379,
+   38.1800728,
+   -1.09302497
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292007752",
+  "pos": [
+   -1.14731705,
+   38.1800728,
+   -1.09302795
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "KAL9000_4293082150",
+  "pos": [
+   -1.77502847,
+   42.2037964,
+   0.176406384
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "kOSProcessor",
+   "ModuleLight",
+   "kOSLightModule",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleCargoPart",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-engine-375-corgi_4292093204",
+  "pos": [
+   0.122107267,
+   37.3395462,
+   0.176408947
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleTestSubject",
+   "FXModuleLookAtConstraint",
+   "ModuleJettison",
+   "ModuleSurfaceFX",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Separator.3_4292105504",
+  "pos": [
+   0.122107267,
+   34.8745499,
+   0.176409841
+  ],
+  "istg": 7,
+  "dstg": 1,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDecouple",
+   "ModuleToggleCrossfeed",
+   "ModuleTestSubject",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-drone-core-375-1_4291514082",
+  "pos": [
+   0.122107267,
+   34.4875526,
+   0.176410794
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleProbeControlPoint",
+   "ModuleCommand",
+   "ModuleReactionWheel",
+   "ModuleSAS",
+   "ModuleKerbNetAccess",
+   "ModuleDataTransmitter",
+   "ModuleScienceContainer",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "MechJebCore",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TrajectoriesVesselSettings",
+   "TweakScale",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    80.0,
+    80.0
+   ]
+  ]
+ },
+ {
+  "part": "restock-fueltank-adapter-375-5-1_4292106436",
+  "pos": [
+   0.122107267,
+   33.0415535,
+   0.176410794
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -8.94069672e-08,
+  "modules": [
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartSwitch",
+   "ModuleCryoTank",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "LiquidFuel",
+    2880.0,
+    2880.0
+   ],
+   [
+    "Oxidizer",
+    3520.0,
+    3520.0
+   ]
+  ]
+ },
+ {
+  "part": "restock-fueltank-5-1_4292475060",
+  "pos": [
+   0.122107267,
+   24.2915497,
+   0.1764099
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -7.15255737e-07,
+  "modules": [
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartSwitch",
+   "ModuleCryoTank",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "LiquidFuel",
+    23040.0,
+    23040.0
+   ],
+   [
+    "Oxidizer",
+    28160.0,
+    28160.0
+   ]
+  ]
+ },
+ {
+  "part": "HotGasThruster-L_4292381928",
+  "pos": [
+   0.122112274,
+   17.0103226,
+   -2.2713809
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381646",
+  "pos": [
+   -1.60875928,
+   17.0103226,
+   -1.55446196
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381564",
+  "pos": [
+   -2.32568407,
+   17.0103264,
+   0.176406741
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381482",
+  "pos": [
+   -1.60876608,
+   17.0103264,
+   1.90727675
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381400",
+  "pos": [
+   0.122103453,
+   17.0103264,
+   2.62420082
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381318",
+  "pos": [
+   1.85297477,
+   17.0103264,
+   1.90728498
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381236",
+  "pos": [
+   2.56989598,
+   17.0103226,
+   0.176415086
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292381154",
+  "pos": [
+   1.85298038,
+   17.0103226,
+   -1.55445683
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "nfs-panel-static-truss-3_4292229740",
+  "pos": [
+   1.68966961,
+   29.7352066,
+   -1.39114487
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "ModuleDeployableSolarPanel",
+   "ModulePartVariants",
+   "ModuleB9PartSwitch",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "nfs-panel-static-truss-3_4292229482",
+  "pos": [
+   -1.44544876,
+   29.7352066,
+   -1.39115143
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "ModuleDeployableSolarPanel",
+   "ModulePartVariants",
+   "ModuleB9PartSwitch",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "nfs-panel-static-truss-3_4292229368",
+  "pos": [
+   -1.4454546,
+   29.7352066,
+   1.74396574
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "ModuleDeployableSolarPanel",
+   "ModulePartVariants",
+   "ModuleB9PartSwitch",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "nfs-panel-static-truss-3_4292229254",
+  "pos": [
+   1.68966281,
+   29.7352066,
+   1.74397302
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "ModuleDeployableSolarPanel",
+   "ModulePartVariants",
+   "ModuleB9PartSwitch",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "batteryPack_4292228928",
+  "pos": [
+   -2.19166923,
+   29.5561523,
+   0.176408887
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    100.0,
+    100.0
+   ]
+  ]
+ },
+ {
+  "part": "batteryPack_4292228258",
+  "pos": [
+   2.43588471,
+   29.5561523,
+   0.176412225
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    100.0,
+    100.0
+   ]
+  ]
+ },
+ {
+  "part": "KAL9000_4292272802",
+  "pos": [
+   -2.3295486,
+   31.9732475,
+   0.176409125
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "kOSProcessor",
+   "ModuleLight",
+   "kOSLightModule",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleCargoPart",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SurfAntenna_4291702188",
+  "pos": [
+   -1.79582632,
+   34.3165855,
+   0.176410079
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "batteryPack_4292952108",
+  "pos": [
+   -1.58570504,
+   41.4459267,
+   0.176407695
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    100.0,
+    100.0
+   ]
+  ]
+ },
+ {
+  "part": "batteryPack_4292951886",
+  "pos": [
+   1.82992005,
+   41.4459267,
+   0.176408291
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    100.0,
+    100.0
+   ]
+  ]
+ },
+ {
+  "part": "restock-adapter-hollow-25-375-1_4292487060",
+  "pos": [
+   0.122107275,
+   45.0087967,
+   0.176408052
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "probeStackLarge_4292485636",
+  "pos": [
+   0.122107275,
+   46.3489647,
+   0.176408052
+  ],
+  "istg": 6,
+  "dstg": 2,
+  "sepI": 7,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleProbeControlPoint",
+   "ModuleCommand",
+   "ModuleReactionWheel",
+   "ModuleSAS",
+   "ModuleKerbNetAccess",
+   "ModuleDataTransmitter",
+   "ModuleScienceContainer",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "MechJebCore",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TrajectoriesVesselSettings",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    30.0,
+    30.0
+   ]
+  ]
+ },
+ {
+  "part": "Separator.2_4292880164",
+  "pos": [
+   0.122107275,
+   46.6389618,
+   0.176408052
+  ],
+  "istg": 5,
+  "dstg": 3,
+  "sepI": 5,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDecouple",
+   "ModuleToggleCrossfeed",
+   "ModuleTestSubject",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "LiquidEngineRE-J10_4293218524",
+  "pos": [
+   0.122107275,
+   48.4539642,
+   0.176408052
+  ],
+  "istg": 4,
+  "dstg": 4,
+  "sepI": 5,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleSurfaceFX",
+   "ModuleJettison",
+   "ModuleSurfaceFX",
+   "ModuleTestSubject",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "ModulePartVariants",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "FXModuleLookAtConstraint",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "TPtank2mL05625_4292443952",
+  "pos": [
+   0.122107275,
+   51.6275291,
+   0.176408052
+  ],
+  "istg": 4,
+  "dstg": 4,
+  "sepI": 5,
+  "modMass": -6.70552254e-08,
+  "modules": [
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleB9PartSwitch",
+   "ModuleCryoTank",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "LiquidFuel",
+    2160.0,
+    2160.0
+   ],
+   [
+    "Oxidizer",
+    2640.0,
+    2640.0
+   ]
+  ]
+ },
+ {
+  "part": "fairingSize2_4293126494",
+  "pos": [
+   0.122107275,
+   54.6400299,
+   0.176408052
+  ],
+  "istg": 3,
+  "dstg": 5,
+  "sepI": 5,
+  "modMass": 1.1375339,
+  "modules": [
+   "ModuleProceduralFairing",
+   "ModuleTestSubject",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNode",
+   "ModuleStructuralNodeToggle",
+   "ModulePartVariants",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockModifyFairingMaterials",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Separator.0_4293089526",
+  "pos": [
+   0.122107275,
+   54.8925323,
+   0.176408052
+  ],
+  "istg": 0,
+  "dstg": 7,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDecouple",
+   "ModuleToggleCrossfeed",
+   "ModuleTestSubject",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "probeStackSmall_4293038892",
+  "pos": [
+   0.122107275,
+   55.025032,
+   0.176408052
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleProbeControlPoint",
+   "ModuleCommand",
+   "ModuleReactionWheel",
+   "ModuleSAS",
+   "ModuleKerbNetAccess",
+   "ModuleDataTransmitter",
+   "ModuleScienceContainer",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "MechJebCore",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TrajectoriesVesselSettings",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    15.0,
+    15.0
+   ]
+  ]
+ },
+ {
+  "part": "SurfAntenna_4293037160",
+  "pos": [
+   -0.551356792,
+   55.0185776,
+   0.176408291
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "batteryBank_4293004990",
+  "pos": [
+   0.122107275,
+   55.2358856,
+   0.176408052
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    1000.0,
+    1000.0
+   ]
+  ]
+ },
+ {
+  "part": "TPmono1mL02850_4293063982",
+  "pos": [
+   0.122107275,
+   55.4892426,
+   0.176408052
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "MonoPropellant",
+    60.0,
+    60.0
+   ]
+  ]
+ },
+ {
+  "part": "RelayAntenna100_4293083472",
+  "pos": [
+   0.122107275,
+   55.8117447,
+   0.176408052
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Magnetometer_4293042216",
+  "pos": [
+   0.12210723,
+   55.5190048,
+   -0.428600132
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployablePart",
+   "ModuleScienceExperiment",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockDepthMask",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Magnetometer_4293040922",
+  "pos": [
+   0.122107409,
+   55.5190048,
+   0.781420767
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployablePart",
+   "ModuleScienceExperiment",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockDepthMask",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292999958",
+  "pos": [
+   -0.306241155,
+   55.0757523,
+   0.604756951
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292997956",
+  "pos": [
+   0.550455689,
+   55.0757523,
+   0.604756057
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292997884",
+  "pos": [
+   0.550455272,
+   55.0757523,
+   -0.251940459
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292997812",
+  "pos": [
+   -0.306241214,
+   55.0757523,
+   -0.251939893
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292987428",
+  "pos": [
+   -0.317278981,
+   55.4977264,
+   0.615794182
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292986128",
+  "pos": [
+   0.561493754,
+   55.4977264,
+   0.615793169
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292985600",
+  "pos": [
+   0.561493158,
+   55.4977264,
+   -0.262977749
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292985072",
+  "pos": [
+   -0.317279279,
+   55.4977264,
+   -0.262978673
+  ],
+  "istg": 0,
+  "dstg": 8,
+  "sepI": 0,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Separator.0_4292972362",
+  "pos": [
+   0.122107275,
+   57.9225311,
+   0.176408052
+  ],
+  "istg": 1,
+  "dstg": 7,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDecouple",
+   "ModuleToggleCrossfeed",
+   "ModuleTestSubject",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "probeStackSmall_4292972216",
+  "pos": [
+   0.122107275,
+   58.0550308,
+   0.176408052
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleProbeControlPoint",
+   "ModuleCommand",
+   "ModuleReactionWheel",
+   "ModuleSAS",
+   "ModuleKerbNetAccess",
+   "ModuleDataTransmitter",
+   "ModuleScienceContainer",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "MechJebCore",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TrajectoriesVesselSettings",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    15.0,
+    15.0
+   ]
+  ]
+ },
+ {
+  "part": "SurfAntenna_4292972108",
+  "pos": [
+   -0.551356792,
+   58.0485764,
+   0.176408291
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "batteryBank_4292972050",
+  "pos": [
+   0.122107275,
+   58.2658844,
+   0.176408052
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    1000.0,
+    1000.0
+   ]
+  ]
+ },
+ {
+  "part": "TPmono1mL02850_4292971974",
+  "pos": [
+   0.122107275,
+   58.5192413,
+   0.176408052
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "MonoPropellant",
+    60.0,
+    60.0
+   ]
+  ]
+ },
+ {
+  "part": "RelayAntenna100_4292971896",
+  "pos": [
+   0.122107275,
+   58.8417435,
+   0.176408052
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Magnetometer_4292971770",
+  "pos": [
+   0.122107238,
+   58.5490036,
+   -0.428602397
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployablePart",
+   "ModuleScienceExperiment",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockDepthMask",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Magnetometer_4292971540",
+  "pos": [
+   0.122109622,
+   58.5490036,
+   0.781418502
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployablePart",
+   "ModuleScienceExperiment",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockDepthMask",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292971310",
+  "pos": [
+   -0.31727913,
+   58.5277252,
+   0.615794301
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292970842",
+  "pos": [
+   0.561493039,
+   58.5277252,
+   0.615794122
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292970376",
+  "pos": [
+   0.561493278,
+   58.5277252,
+   -0.262977898
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292969910",
+  "pos": [
+   -0.317278653,
+   58.5277252,
+   -0.262977988
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292969444",
+  "pos": [
+   -0.306241184,
+   58.105751,
+   0.604756951
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292969370",
+  "pos": [
+   0.550454795,
+   58.105751,
+   0.604755163
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292969296",
+  "pos": [
+   0.550455213,
+   58.105751,
+   -0.251940489
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292969222",
+  "pos": [
+   -0.30624035,
+   58.105751,
+   -0.251940757
+  ],
+  "istg": 1,
+  "dstg": 8,
+  "sepI": 1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Separator.0_4292965324",
+  "pos": [
+   0.122107275,
+   60.9225311,
+   0.176408052
+  ],
+  "istg": 2,
+  "dstg": 7,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDecouple",
+   "ModuleToggleCrossfeed",
+   "ModuleTestSubject",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "probeStackSmall_4292965168",
+  "pos": [
+   0.122107275,
+   61.0550308,
+   0.176408052
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleProbeControlPoint",
+   "ModuleCommand",
+   "ModuleReactionWheel",
+   "ModuleSAS",
+   "ModuleKerbNetAccess",
+   "ModuleDataTransmitter",
+   "ModuleScienceContainer",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "MechJebCore",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TrajectoriesVesselSettings",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    15.0,
+    15.0
+   ]
+  ]
+ },
+ {
+  "part": "SurfAntenna_4292965054",
+  "pos": [
+   -0.551356792,
+   61.0485764,
+   0.176408291
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "batteryBank_4292964996",
+  "pos": [
+   0.122107275,
+   61.2658844,
+   0.176408052
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "ElectricCharge",
+    1000.0,
+    1000.0
+   ]
+  ]
+ },
+ {
+  "part": "TPmono1mL02850_4292964914",
+  "pos": [
+   0.122107275,
+   61.5192413,
+   0.176408052
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "MonoPropellant",
+    60.0,
+    60.0
+   ]
+  ]
+ },
+ {
+  "part": "RelayAntenna100_4292964830",
+  "pos": [
+   0.122107275,
+   61.8417435,
+   0.176408052
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDataTransmitter",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleTripLogger",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Magnetometer_4292964704",
+  "pos": [
+   0.122107238,
+   61.5490036,
+   -0.428604603
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployablePart",
+   "ModuleScienceExperiment",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockDepthMask",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "Magnetometer_4292964472",
+  "pos": [
+   0.122109622,
+   61.5490036,
+   0.781416297
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployablePart",
+   "ModuleScienceExperiment",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "ModuleRestockDepthMask",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292964240",
+  "pos": [
+   -0.317279249,
+   61.5277252,
+   0.61579442
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292963772",
+  "pos": [
+   0.561493158,
+   61.5277252,
+   0.615794182
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292963306",
+  "pos": [
+   0.561493397,
+   61.5277252,
+   -0.262977988
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "RCSblock.01.small_4292962840",
+  "pos": [
+   -0.317279816,
+   61.5277252,
+   -0.262976944
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "ModuleRestockDepthMask",
+   "ModuleRestockRCSGlow",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292962374",
+  "pos": [
+   -0.306241184,
+   61.105751,
+   0.604756951
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292962298",
+  "pos": [
+   0.550454855,
+   61.105751,
+   0.604755163
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292962222",
+  "pos": [
+   0.550455213,
+   61.105751,
+   -0.251940489
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "solarPanels5_4292962146",
+  "pos": [
+   -0.306240082,
+   61.105751,
+   -0.251941025
+  ],
+  "istg": 2,
+  "dstg": 8,
+  "sepI": 2,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleDeployableSolarPanel",
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-fueltank-5-1_4292467114",
+  "pos": [
+   0.12210726,
+   9.29154968,
+   0.17640987
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -7.15255737e-07,
+  "modules": [
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "ModuleB9PartSwitch",
+   "ModuleCryoTank",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": [
+   [
+    "LiquidFuel",
+    23040.0,
+    23040.0
+   ],
+   [
+    "Oxidizer",
+    28160.0,
+    28160.0
+   ]
+  ]
+ },
+ {
+  "part": "SSME_4292458580",
+  "pos": [
+   0.122108333,
+   1.79154968,
+   0.17640987
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292457114",
+  "pos": [
+   -1.7183342,
+   1.79154968,
+   0.176407337
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292446058",
+  "pos": [
+   -1.17926383,
+   1.79154205,
+   1.47777522
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292445622",
+  "pos": [
+   0.122101605,
+   1.79154587,
+   2.01685238
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292445186",
+  "pos": [
+   1.4234786,
+   1.79154968,
+   1.4777813
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292444750",
+  "pos": [
+   1.9625504,
+   1.79154205,
+   0.176415682
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292444314",
+  "pos": [
+   1.42348516,
+   1.79154968,
+   -1.12496388
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292443878",
+  "pos": [
+   0.122110635,
+   1.79154587,
+   -1.66403282
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "SSME_4292443442",
+  "pos": [
+   -1.17926264,
+   1.79154205,
+   -1.12496543
+  ],
+  "istg": 8,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleGimbal",
+   "ModuleEnginesFX",
+   "ModuleAlternator",
+   "ModuleJettison",
+   "ModuleTestSubject",
+   "ModuleSurfaceFX",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "ModuleSelfSealingTank",
+   "FMRS_PM",
+   "TweakScale",
+   "ModulePartVariants",
+   "FXModuleLookAtConstraint",
+   "FXModuleThrottleEffects",
+   "FXModuleThrottleEffects",
+   "ModuleColorChanger",
+   "ModuleColorChanger",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "ModuleWaterfallFX",
+   "ModuleB9PartSwitch",
+   "ModuleB9PartInfo",
+   "AttachedOnEditor",
+   "TweakScalerWaterfallFX",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292391116",
+  "pos": [
+   -2.324898,
+   2.00304031,
+   0.176405549
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390810",
+  "pos": [
+   -1.60821342,
+   2.0030365,
+   1.90672553
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390728",
+  "pos": [
+   0.122104652,
+   2.00304031,
+   2.62341547
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390646",
+  "pos": [
+   1.85242486,
+   2.00304031,
+   1.90673006
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390564",
+  "pos": [
+   2.56911397,
+   2.00304031,
+   0.176413417
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390482",
+  "pos": [
+   1.85243177,
+   2.00304031,
+   -1.55390823
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390400",
+  "pos": [
+   0.122111753,
+   2.00304031,
+   -2.27059603
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292390318",
+  "pos": [
+   -1.60820913,
+   2.0030365,
+   -1.55391204
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292389584",
+  "pos": [
+   -2.31085324,
+   2.49827194,
+   0.176406264
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292389302",
+  "pos": [
+   -1.59828258,
+   2.49827194,
+   1.89679515
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292389220",
+  "pos": [
+   0.122104421,
+   2.49827194,
+   2.60937071
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292389138",
+  "pos": [
+   1.84249246,
+   2.49827194,
+   1.89680123
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292389056",
+  "pos": [
+   2.55506968,
+   2.49827194,
+   0.17641294
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292388974",
+  "pos": [
+   1.84250021,
+   2.49827194,
+   -1.54397666
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292388892",
+  "pos": [
+   0.122111991,
+   2.49827194,
+   -2.25655031
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292388810",
+  "pos": [
+   -1.59827864,
+   2.49827194,
+   -1.54398131
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292388040",
+  "pos": [
+   -2.32327199,
+   16.5361252,
+   0.176405549
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292383154",
+  "pos": [
+   -1.60706389,
+   16.5361252,
+   1.90557611
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292383072",
+  "pos": [
+   0.122104913,
+   16.5361252,
+   2.62179041
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292382990",
+  "pos": [
+   1.85127473,
+   16.5361252,
+   1.90558231
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292382908",
+  "pos": [
+   2.56748748,
+   16.5361252,
+   0.17641294
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292382826",
+  "pos": [
+   1.85128224,
+   16.5361252,
+   -1.55275762
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292382744",
+  "pos": [
+   0.122111775,
+   16.5361252,
+   -2.26896858
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "HotGasThruster-L_4292382662",
+  "pos": [
+   -1.60705948,
+   16.5361252,
+   -1.55276287
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.0,
+  "modules": [
+   "ModuleRCSFX",
+   "ModulePartVariants",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "TweakScale",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-leg-3-rigid_4292298542",
+  "pos": [
+   -1.92776251,
+   0.831588745,
+   2.22627592
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.699999988,
+  "modules": [
+   "ModuleAnimateGeneric",
+   "ModulePhysicMaterial",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-leg-3-rigid_4292288768",
+  "pos": [
+   2.17197323,
+   0.831588745,
+   2.2262826
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.699999988,
+  "modules": [
+   "ModuleAnimateGeneric",
+   "ModulePhysicMaterial",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-leg-3-rigid_4292288654",
+  "pos": [
+   2.17198086,
+   0.831588745,
+   -1.87345469
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.699999988,
+  "modules": [
+   "ModuleAnimateGeneric",
+   "ModulePhysicMaterial",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "restock-leg-3-rigid_4292288540",
+  "pos": [
+   -1.92775583,
+   0.831588745,
+   -1.87346208
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": 0.699999988,
+  "modules": [
+   "ModuleAnimateGeneric",
+   "ModulePhysicMaterial",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "FARPartModule",
+   "KOSNameTag",
+   "TweakScale",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "tailfin_4291923234",
+  "pos": [
+   0.122106791,
+   3.93798637,
+   2.64754391
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -0.0367893353,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "FARControllableSurface",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "tailfin_4291579656",
+  "pos": [
+   2.5932405,
+   3.93798637,
+   0.176410556
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -0.0367893353,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "FARControllableSurface",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "tailfin_4291579582",
+  "pos": [
+   0.122107476,
+   3.93798637,
+   -2.29472399
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -0.0367893353,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "FARControllableSurface",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ },
+ {
+  "part": "tailfin_4291579508",
+  "pos": [
+   -2.34902644,
+   3.93798637,
+   0.176409364
+  ],
+  "istg": -1,
+  "dstg": 0,
+  "sepI": -1,
+  "modMass": -0.0367893353,
+  "modules": [
+   "ModuleCargoPart",
+   "FundsKeeper",
+   "StealBackMyFunds",
+   "HitpointTracker",
+   "FMRS_PM",
+   "TweakScale",
+   "FARControllableSurface",
+   "GeometryPartModule",
+   "FARAeroPartModule",
+   "KOSNameTag",
+   "AttachedOnEditor",
+   "ModuleIREditorHelper"
+  ],
+  "resources": []
+ }
+]

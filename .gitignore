@@ -1,0 +1,94 @@
+# ============================================================
+# dev/ 仓库的忽略规则
+# 【为什么需要】把【可再生的/体积大的/临时的】产物排除在版本控制之外，
+#   只跟踪人工维护的源码。这样仓库小、diff 干净、clone 快。
+# ============================================================
+
+# ---- Python 字节码缓存（每次运行自动重建）----
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ---- cvxpygen 代码生成产物 ----
+#   dev/gfold/solver/cpg_p3、cpg_p4 由
+#       pwsh -File tools/gen_codegen.ps1
+#   生成（约 42 MB / 398 文件）。它们【必须存在才能走 codegen 快路径】，
+#   但【不应进版本库】：
+#     · 体积大、含 .obj/.lib/.pdb 等二进制中间产物
+#     · 内容由 gfold_codegen.py 的【约束定义】决定，
+#       改了 gfold_codegen.py 就必须重新生成 ⇒ 属于派生产物
+#   重新生成后 gfold_p3p4.py 会自动加载；缺失时自动回退 cvxpy（较慢但等价）。
+cpg_p3/
+cpg_p4/
+GFOLD_p3/
+GFOLD_p4/
+
+# ---- 编译/构建产物 ----
+build/
+dist/
+*.egg-info/
+*.so
+*.pyd
+*.exp
+*.lib
+*.obj
+*.dll
+*.exe
+*.pdb
+*.ilk
+
+# ---- 虚拟环境 ----
+venv/
+.venv/
+env/
+env.bak/
+venv.bak/
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+*~
+Thumbs.db
+desktop.ini
+
+# ---- 类型检查 / 测试缓存 ----
+.mypy_cache/
+.dmypy.json
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- 外部参考仓库 dev/gfold（整目录不进本仓库）----
+# 【背景】dev/gfold 是【上游参考实现 GFOLD_KSP 的克隆】，它自带 .git：
+#     https://github.com/xdedss/GFOLD_KSP.git   (本地 remote 经 gh-proxy 镜像)
+#   上游只跟踪它自己的文件（demo3_gfold.py / GFOLD_*.py / params.txt …）。
+#
+# 【为什么整目录排除】
+#   dev/gfold 是【独立 git 仓库】，若纳入本仓库会被 git 当成 embedded repo
+#   （clone 出去只剩空目录）。如果只想保留上游代码，保持它独立即可：
+#       需要时 git -C dev/gfold pull
+#
+# 【那生产依赖的两个文件怎么办】——它们【已经复制到本仓库】：
+#     dev/solver/gfold_p3p4.py     ← gfold_land.py 直接 import 的求解器
+#     dev/solver/gfold_codegen.py  ← codegen 生成器
+#     dev/analysis/                ← 从 gfold/analysis 复制来的离线分析脚本
+#   原因：这两个文件【不在上游的跟踪列表里】，是本项目自己写的，
+#        必须随本仓库版本控制，否则 clone 出去 gfold_land.py 会
+#        ModuleNotFoundError。
+#   （gfold_land.py 已改为优先用 ../solver，回退 ../gfold/solver。）
+#
+# 【需要读上游参考文件时】直接看 dev/gfold/（demo3_gfold.py、
+#   GFOLD_direct_exec.py、params.txt —— 它们才是"逐行照抄"的对照物）。
+gfold/
+
+# ---- 本项目的历史恢复资料（保留在磁盘、不进版本库）----
+#   dev/recovery/ 保存了 2026-09-28 那次误删事故的反汇编转储与重建片段。
+#   可以作为"最后凭据"留在本机，但不必进仓库。
+recovery/
+
+# ---- 实飞日志（体积大、多为二进制/时序数据）----
+#   日志本体在仓库外（log-B1040-9-gfold/ 与 log-B1040-9/），此处仅兜底。
+*.csv
+*.log

@@ -1,0 +1,254 @@
+TOTAL PARTS: 129
+
+=== PART NAME COUNTS ===
+  40  HotGasThruster-L
+   2  KAL9000
+   1  LiquidEngineRE-J10
+   6  Magnetometer
+  12  RCSblock.01.small
+   3  RelayAntenna100
+   9  SSME
+   3  Separator.0
+   1  Separator.2
+   1  Separator.3
+   4  SurfAntenna
+   3  TPmono1mL02850
+   1  TPtank2mL05625
+   1  TPtank3mL05625
+   3  batteryBank
+   4  batteryPack
+   1  fairingSize2
+   4  nfs-panel-static-truss-3
+   1  probeStackLarge
+   3  probeStackSmall
+   1  restock-adapter-hollow-25-375-1
+   1  restock-drone-core-375-1
+   1  restock-engine-375-corgi
+   2  restock-fueltank-5-1
+   1  restock-fueltank-adapter-375-5-1
+   4  restock-leg-3-rigid
+  12  solarPanels5
+   4  tailfin
+
+=== istg distribution === {-1: 52, 0: 16, 1: 16, 2: 16, 3: 1, 4: 2, 5: 1, 6: 15, 7: 1, 8: 9}
+
+=== PARTS WITH KEY MODULES ===
+HotGasThruster-L_4292017334                   pos=[-1.14658475, 43.8256798, 1.44509649] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292010300                   pos=[1.39079809, 43.8256798, 1.44509864] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292010216                   pos=[1.39079833, 43.8256912, -1.09228289] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292010132                   pos=[-1.14657748, 43.8256912, -1.0922879] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292009698                   pos=[-1.14732385, 38.1800728, 1.44583106] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292007916                   pos=[1.39153743, 38.1800728, 1.44583464] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292007834                   pos=[1.3915379, 38.1800728, -1.09302497] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292007752                   pos=[-1.14731705, 38.1800728, -1.09302795] istg=6 dstg=2 sepI=7 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+restock-engine-375-corgi_4292093204           pos=[0.122107267, 37.3395462, 0.176408947] istg=6 dstg=2 sepI=7 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '100', 'flameout': 'False'}
+restock-drone-core-375-1_4291514082           pos=[0.122107267, 34.4875526, 0.176410794] istg=-1 dstg=0 sepI=-1 keys={'wheelmod': 'ModuleReactionWheel'}
+HotGasThruster-L_4292381928                   pos=[0.122112274, 17.0103226, -2.2713809] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381646                   pos=[-1.60875928, 17.0103226, -1.55446196] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381564                   pos=[-2.32568407, 17.0103264, 0.176406741] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381482                   pos=[-1.60876608, 17.0103264, 1.90727675] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381400                   pos=[0.122103453, 17.0103264, 2.62420082] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381318                   pos=[1.85297477, 17.0103264, 1.90728498] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381236                   pos=[2.56989598, 17.0103226, 0.176415086] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292381154                   pos=[1.85298038, 17.0103226, -1.55445683] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+probeStackLarge_4292485636                    pos=[0.122107275, 46.3489647, 0.176408052] istg=6 dstg=2 sepI=7 keys={'wheelmod': 'ModuleReactionWheel'}
+LiquidEngineRE-J10_4293218524                 pos=[0.122107275, 48.4539642, 0.176408052] istg=4 dstg=4 sepI=5 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '100', 'flameout': 'False'}
+probeStackSmall_4293038892                    pos=[0.122107275, 55.025032, 0.176408052] istg=0 dstg=8 sepI=0 keys={'wheelmod': 'ModuleReactionWheel'}
+RCSblock.01.small_4292987428                  pos=[-0.317278981, 55.4977264, 0.615794182] istg=0 dstg=8 sepI=0 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292986128                  pos=[0.561493754, 55.4977264, 0.615793169] istg=0 dstg=8 sepI=0 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292985600                  pos=[0.561493158, 55.4977264, -0.262977749] istg=0 dstg=8 sepI=0 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292985072                  pos=[-0.317279279, 55.4977264, -0.262978673] istg=0 dstg=8 sepI=0 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+probeStackSmall_4292972216                    pos=[0.122107275, 58.0550308, 0.176408052] istg=1 dstg=8 sepI=1 keys={'wheelmod': 'ModuleReactionWheel'}
+RCSblock.01.small_4292971310                  pos=[-0.31727913, 58.5277252, 0.615794301] istg=1 dstg=8 sepI=1 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292970842                  pos=[0.561493039, 58.5277252, 0.615794122] istg=1 dstg=8 sepI=1 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292970376                  pos=[0.561493278, 58.5277252, -0.262977898] istg=1 dstg=8 sepI=1 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292969910                  pos=[-0.317278653, 58.5277252, -0.262977988] istg=1 dstg=8 sepI=1 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+probeStackSmall_4292965168                    pos=[0.122107275, 61.0550308, 0.176408052] istg=2 dstg=8 sepI=2 keys={'wheelmod': 'ModuleReactionWheel'}
+RCSblock.01.small_4292964240                  pos=[-0.317279249, 61.5277252, 0.61579442] istg=2 dstg=8 sepI=2 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292963772                  pos=[0.561493158, 61.5277252, 0.615794182] istg=2 dstg=8 sepI=2 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292963306                  pos=[0.561493397, 61.5277252, -0.262977988] istg=2 dstg=8 sepI=2 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+RCSblock.01.small_4292962840                  pos=[-0.317279816, 61.5277252, -0.262976944] istg=2 dstg=8 sepI=2 keys={'RCS_thrustPercentage': '1', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+SSME_4292458580                               pos=[0.122108333, 1.79154968, 0.17640987] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292457114                               pos=[-1.7183342, 1.79154968, 0.176407337] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292446058                               pos=[-1.17926383, 1.79154205, 1.47777522] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292445622                               pos=[0.122101605, 1.79154587, 2.01685238] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292445186                               pos=[1.4234786, 1.79154968, 1.4777813] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292444750                               pos=[1.9625504, 1.79154205, 0.176415682] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292444314                               pos=[1.42348516, 1.79154968, -1.12496388] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292443878                               pos=[0.122110635, 1.79154587, -1.66403282] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+SSME_4292443442                               pos=[-1.17926264, 1.79154205, -1.12496543] istg=8 dstg=0 sepI=-1 keys={'gimbal_gimbalActive': 'False', 'thrustPercentage': '150', 'flameout': 'False'}
+HotGasThruster-L_4292391116                   pos=[-2.324898, 2.00304031, 0.176405549] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390810                   pos=[-1.60821342, 2.0030365, 1.90672553] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390728                   pos=[0.122104652, 2.00304031, 2.62341547] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390646                   pos=[1.85242486, 2.00304031, 1.90673006] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390564                   pos=[2.56911397, 2.00304031, 0.176413417] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390482                   pos=[1.85243177, 2.00304031, -1.55390823] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390400                   pos=[0.122111753, 2.00304031, -2.27059603] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292390318                   pos=[-1.60820913, 2.0030365, -1.55391204] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292389584                   pos=[-2.31085324, 2.49827194, 0.176406264] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292389302                   pos=[-1.59828258, 2.49827194, 1.89679515] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292389220                   pos=[0.122104421, 2.49827194, 2.60937071] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292389138                   pos=[1.84249246, 2.49827194, 1.89680123] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292389056                   pos=[2.55506968, 2.49827194, 0.17641294] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292388974                   pos=[1.84250021, 2.49827194, -1.54397666] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292388892                   pos=[0.122111991, 2.49827194, -2.25655031] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292388810                   pos=[-1.59827864, 2.49827194, -1.54398131] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292388040                   pos=[-2.32327199, 16.5361252, 0.176405549] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292383154                   pos=[-1.60706389, 16.5361252, 1.90557611] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292383072                   pos=[0.122104913, 16.5361252, 2.62179041] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292382990                   pos=[1.85127473, 16.5361252, 1.90558231] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292382908                   pos=[2.56748748, 16.5361252, 0.17641294] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292382826                   pos=[1.85128224, 16.5361252, -1.55275762] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292382744                   pos=[0.122111775, 16.5361252, -2.26896858] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+HotGasThruster-L_4292382662                   pos=[-1.60705948, 16.5361252, -1.55276287] istg=-1 dstg=0 sepI=-1 keys={'RCS_thrustPercentage': '100', 'RCS_useThrottle': 'False', 'RCS_fullThrust': 'False'}
+
+=== TweakScale parts ===
+TPtank3mL05625_4292090108                     scale=3.75 type=stack
+HotGasThruster-L_4292017334                   scale=100 type=free
+HotGasThruster-L_4292010300                   scale=100 type=free
+HotGasThruster-L_4292010216                   scale=100 type=free
+HotGasThruster-L_4292010132                   scale=100 type=free
+HotGasThruster-L_4292009698                   scale=100 type=free
+HotGasThruster-L_4292007916                   scale=100 type=free
+HotGasThruster-L_4292007834                   scale=100 type=free
+HotGasThruster-L_4292007752                   scale=100 type=free
+restock-engine-375-corgi_4292093204           scale=3.75 type=stack
+Separator.3_4292105504                        scale=3.75 type=stack
+restock-drone-core-375-1_4291514082           scale=3.75 type=stack
+restock-fueltank-adapter-375-5-1_4292106436   scale=3.75 type=stack
+restock-fueltank-5-1_4292475060               scale=5 type=stack
+HotGasThruster-L_4292381928                   scale=100 type=free
+HotGasThruster-L_4292381646                   scale=100 type=free
+HotGasThruster-L_4292381564                   scale=100 type=free
+HotGasThruster-L_4292381482                   scale=100 type=free
+HotGasThruster-L_4292381400                   scale=100 type=free
+HotGasThruster-L_4292381318                   scale=100 type=free
+HotGasThruster-L_4292381236                   scale=100 type=free
+HotGasThruster-L_4292381154                   scale=100 type=free
+nfs-panel-static-truss-3_4292229740           scale=100 type=free_square
+nfs-panel-static-truss-3_4292229482           scale=100 type=free_square
+nfs-panel-static-truss-3_4292229368           scale=100 type=free_square
+nfs-panel-static-truss-3_4292229254           scale=100 type=free_square
+batteryPack_4292228928                        scale=100 type=free
+batteryPack_4292228258                        scale=100 type=free
+SurfAntenna_4291702188                        scale=100 type=free_square
+batteryPack_4292952108                        scale=100 type=free
+batteryPack_4292951886                        scale=100 type=free
+restock-adapter-hollow-25-375-1_4292487060    scale=2.5 type=stack
+probeStackLarge_4292485636                    scale=2.5 type=stack
+Separator.2_4292880164                        scale=2.5 type=stack
+TPtank2mL05625_4292443952                     scale=2.5 type=stack
+Separator.0_4293089526                        scale=0.625 type=stack
+probeStackSmall_4293038892                    scale=1.25 type=stack
+SurfAntenna_4293037160                        scale=100 type=free_square
+batteryBank_4293004990                        scale=1.25 type=stack
+TPmono1mL02850_4293063982                     scale=1.25 type=stack
+RelayAntenna100_4293083472                    scale=1.25 type=stack_square
+solarPanels5_4292999958                       scale=100 type=free_square
+solarPanels5_4292997956                       scale=100 type=free_square
+solarPanels5_4292997884                       scale=100 type=free_square
+solarPanels5_4292997812                       scale=100 type=free_square
+RCSblock.01.small_4292987428                  scale=100 type=free
+RCSblock.01.small_4292986128                  scale=100 type=free
+RCSblock.01.small_4292985600                  scale=100 type=free
+RCSblock.01.small_4292985072                  scale=100 type=free
+Separator.0_4292972362                        scale=0.625 type=stack
+probeStackSmall_4292972216                    scale=1.25 type=stack
+SurfAntenna_4292972108                        scale=100 type=free_square
+batteryBank_4292972050                        scale=1.25 type=stack
+TPmono1mL02850_4292971974                     scale=1.25 type=stack
+RelayAntenna100_4292971896                    scale=1.25 type=stack_square
+RCSblock.01.small_4292971310                  scale=100 type=free
+RCSblock.01.small_4292970842                  scale=100 type=free
+RCSblock.01.small_4292970376                  scale=100 type=free
+RCSblock.01.small_4292969910                  scale=100 type=free
+solarPanels5_4292969444                       scale=100 type=free_square
+solarPanels5_4292969370                       scale=100 type=free_square
+solarPanels5_4292969296                       scale=100 type=free_square
+solarPanels5_4292969222                       scale=100 type=free_square
+Separator.0_4292965324                        scale=0.625 type=stack
+probeStackSmall_4292965168                    scale=1.25 type=stack
+SurfAntenna_4292965054                        scale=100 type=free_square
+batteryBank_4292964996                        scale=1.25 type=stack
+TPmono1mL02850_4292964914                     scale=1.25 type=stack
+RelayAntenna100_4292964830                    scale=1.25 type=stack_square
+RCSblock.01.small_4292964240                  scale=100 type=free
+RCSblock.01.small_4292963772                  scale=100 type=free
+RCSblock.01.small_4292963306                  scale=100 type=free
+RCSblock.01.small_4292962840                  scale=100 type=free
+solarPanels5_4292962374                       scale=100 type=free_square
+solarPanels5_4292962298                       scale=100 type=free_square
+solarPanels5_4292962222                       scale=100 type=free_square
+solarPanels5_4292962146                       scale=100 type=free_square
+restock-fueltank-5-1_4292467114               scale=5 type=stack
+SSME_4292458580                               scale=1.25 type=stack
+SSME_4292457114                               scale=1.25 type=stack
+SSME_4292446058                               scale=1.25 type=stack
+SSME_4292445622                               scale=1.25 type=stack
+SSME_4292445186                               scale=1.25 type=stack
+SSME_4292444750                               scale=1.25 type=stack
+SSME_4292444314                               scale=1.25 type=stack
+SSME_4292443878                               scale=1.25 type=stack
+SSME_4292443442                               scale=1.25 type=stack
+HotGasThruster-L_4292391116                   scale=100 type=free
+HotGasThruster-L_4292390810                   scale=100 type=free
+HotGasThruster-L_4292390728                   scale=100 type=free
+HotGasThruster-L_4292390646                   scale=100 type=free
+HotGasThruster-L_4292390564                   scale=100 type=free
+HotGasThruster-L_4292390482                   scale=100 type=free
+HotGasThruster-L_4292390400                   scale=100 type=free
+HotGasThruster-L_4292390318                   scale=100 type=free
+HotGasThruster-L_4292389584                   scale=100 type=free
+HotGasThruster-L_4292389302                   scale=100 type=free
+HotGasThruster-L_4292389220                   scale=100 type=free
+HotGasThruster-L_4292389138                   scale=100 type=free
+HotGasThruster-L_4292389056                   scale=100 type=free
+HotGasThruster-L_4292388974                   scale=100 type=free
+HotGasThruster-L_4292388892                   scale=100 type=free
+HotGasThruster-L_4292388810                   scale=100 type=free
+HotGasThruster-L_4292388040                   scale=100 type=free
+HotGasThruster-L_4292383154                   scale=100 type=free
+HotGasThruster-L_4292383072                   scale=100 type=free
+HotGasThruster-L_4292382990                   scale=100 type=free
+HotGasThruster-L_4292382908                   scale=100 type=free
+HotGasThruster-L_4292382826                   scale=100 type=free
+HotGasThruster-L_4292382744                   scale=100 type=free
+HotGasThruster-L_4292382662                   scale=100 type=free
+restock-leg-3-rigid_4292298542                scale=200 type=free
+restock-leg-3-rigid_4292288768                scale=200 type=free
+restock-leg-3-rigid_4292288654                scale=200 type=free
+restock-leg-3-rigid_4292288540                scale=200 type=free
+tailfin_4291923234                            scale=100 type=free_square
+tailfin_4291579656                            scale=100 type=free_square
+tailfin_4291579582                            scale=100 type=free_square
+tailfin_4291579508                            scale=100 type=free_square
+
+=== RESOURCES TOTALS (amount / maxAmount) ===
+LiquidFuel                amount=    55980.00  max=    55980.00
+Oxidizer                  amount=    68420.00  max=    68420.00
+ElectricCharge            amount=     3555.00  max=     3555.00
+MonoPropellant            amount=      180.00  max=      180.00
+
+=== PER-PART RESOURCES (nonzero) ===
+TPtank3mL05625_4292090108                     pos=[0.122107267, 41.0006714, 0.176408052] res=[('LiquidFuel', 4860.0, 4860.0), ('Oxidizer', 5940.0, 5940.0)]
+restock-drone-core-375-1_4291514082           pos=[0.122107267, 34.4875526, 0.176410794] res=[('ElectricCharge', 80.0, 80.0)]
+restock-fueltank-adapter-375-5-1_4292106436   pos=[0.122107267, 33.0415535, 0.176410794] res=[('LiquidFuel', 2880.0, 2880.0), ('Oxidizer', 3520.0, 3520.0)]
+restock-fueltank-5-1_4292475060               pos=[0.122107267, 24.2915497, 0.1764099] res=[('LiquidFuel', 23040.0, 23040.0), ('Oxidizer', 28160.0, 28160.0)]
+batteryPack_4292228928                        pos=[-2.19166923, 29.5561523, 0.176408887] res=[('ElectricCharge', 100.0, 100.0)]
+batteryPack_4292228258                        pos=[2.43588471, 29.5561523, 0.176412225] res=[('ElectricCharge', 100.0, 100.0)]
+batteryPack_4292952108                        pos=[-1.58570504, 41.4459267, 0.176407695] res=[('ElectricCharge', 100.0, 100.0)]
+batteryPack_4292951886                        pos=[1.82992005, 41.4459267, 0.176408291] res=[('ElectricCharge', 100.0, 100.0)]
+probeStackLarge_4292485636                    pos=[0.122107275, 46.3489647, 0.176408052] res=[('ElectricCharge', 30.0, 30.0)]
+TPtank2mL05625_4292443952                     pos=[0.122107275, 51.6275291, 0.176408052] res=[('LiquidFuel', 2160.0, 2160.0), ('Oxidizer', 2640.0, 2640.0)]
+probeStackSmall_4293038892                    pos=[0.122107275, 55.025032, 0.176408052] res=[('ElectricCharge', 15.0, 15.0)]
+batteryBank_4293004990                        pos=[0.122107275, 55.2358856, 0.176408052] res=[('ElectricCharge', 1000.0, 1000.0)]
+TPmono1mL02850_4293063982                     pos=[0.122107275, 55.4892426, 0.176408052] res=[('MonoPropellant', 60.0, 60.0)]
+probeStackSmall_4292972216                    pos=[0.122107275, 58.0550308, 0.176408052] res=[('ElectricCharge', 15.0, 15.0)]
+batteryBank_4292972050                        pos=[0.122107275, 58.2658844, 0.176408052] res=[('ElectricCharge', 1000.0, 1000.0)]
+TPmono1mL02850_4292971974                     pos=[0.122107275, 58.5192413, 0.176408052] res=[('MonoPropellant', 60.0, 60.0)]
+probeStackSmall_4292965168                    pos=[0.122107275, 61.0550308, 0.176408052] res=[('ElectricCharge', 15.0, 15.0)]
+batteryBank_4292964996                        pos=[0.122107275, 61.2658844, 0.176408052] res=[('ElectricCharge', 1000.0, 1000.0)]
+TPmono1mL02850_4292964914                     pos=[0.122107275, 61.5192413, 0.176408052] res=[('MonoPropellant', 60.0, 60.0)]
+restock-fueltank-5-1_4292467114               pos=[0.12210726, 9.29154968, 0.17640987] res=[('LiquidFuel', 23040.0, 23040.0), ('Oxidizer', 28160.0, 28160.0)]
+
+Saved craft_parsed.json
