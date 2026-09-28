@@ -8,27 +8,36 @@
 __pycache__/
 *.py[cod]
 *$py.class
+# 【注意】*.py[cod] 会连带匹配 .pyd（扩展模块）！
+#   而 cpg_p3/cpg_p4 的 .pyd 是【实飞必需件】（见下方长注释）。
+#   这里显式放行，否则下面 cpg_p*/ 的 ! 规则也救不回来。
+!*.pyd
 
 # ---- cvxpygen 代码生成产物 ----
-#   dev/gfold/solver/cpg_p3、cpg_p4 由
-#       pwsh -File tools/gen_codegen.ps1
-#   生成（约 42 MB / 398 文件）。它们【必须存在才能走 codegen 快路径】，
-#   但【不应进版本库】：
-#     · 体积大、含 .obj/.lib/.pdb 等二进制中间产物
-#     · 内容由 gfold_codegen.py 的【约束定义】决定，
-#       改了 gfold_codegen.py 就必须重新生成 ⇒ 属于派生产物
-#   重新生成后 gfold_p3p4.py 会自动加载；缺失时自动回退 cvxpy（较慢但等价）。
-cpg_p3/
-cpg_p4/
+#   【2026-09-28 重要修正：.pyd 必须【进版本库】】
+#   事故：cpg_p3/cpg_p4 被删掉后，gfold_p3p4.py 的 _load_cgen() 找不到
+#   扩展就【静默回退 cvxpy】，实飞 solve_ms 从 ~0.08 s 恶化到 3441 ms
+#   （约 48 倍），载具在解算期间白掉 118 m 并整段失控。
+#   ⇒ 它不是"可有可无的优化"，而是【实飞路径上的必需件】。
+#     clone 出去若没有它，程序能跑但会慢 48 倍 —— 这种失败极难发现。
+#   故：只提交【真正需要的 .pyd】，其余生成物仍忽略。
+#
+#   【运行期只需要 .pyd】实测：只留 cpg_module_p*.pyd（各约 0.6~0.9 MB）
+#   时加载与求解均正常（solve 0.0735 s，status=optimal）。
+#   build/ c/ cpp/ problem.pickle README.html 等约 37 MB 是编译中间产物，
+#   不需要，且由 pwsh -File tools/gen_codegen.ps1 可再生。
+cpg_p3/*
+cpg_p4/*
+!cpg_p3/cpg_module_p3*.pyd
+!cpg_p4/cpg_module_p4*.pyd
 GFOLD_p3/
 GFOLD_p4/
 
-# ---- 编译/构建产物 ----
+# ---- 编译/构建产物（cpg_p*/ 下的中间件）----
 build/
 dist/
 *.egg-info/
 *.so
-*.pyd
 *.exp
 *.lib
 *.obj

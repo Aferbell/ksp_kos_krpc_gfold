@@ -148,6 +148,33 @@ def _load_cgen(program, N):
             _load_cgen._warned = True
             print('[cgen] 加载扩展失败: %s: %s' % (type(e).__name__, e))
         mod = None
+    # ================================================================
+    # 【2026-09-28 新增：启动可见性】
+    #   事故：清理时删掉了 cpg_p3/ 与 cpg_p4/，程序【静默】回退 cvxpy，
+    #   实飞 solve_ms 从 ~0.08 s 恶化到 3441 ms（48 倍），载具在解算期间
+    #   白掉 118 m、整段失控。而当时的提示只有一行淹没在刷屏里的
+    #   「[cgen] 加载扩展失败」—— 这种失败必须【不可能被忽略】。
+    #   现在每个 program/N 组合都打印一行明确的 已加载/未加载。
+    # ================================================================
+    _tag = 'P%d(N=%d)' % (program, N)
+    if mod is not None:
+        print('[cgen] %s C 求解器已加载（快速路径）' % _tag)
+    else:
+        _dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            'cpg_p%d' % program)
+        print('[cgen] *** %s 未加载 -> 回退 cvxpy（慢约 48 倍，实飞会掉高度）***'
+              % _tag)
+        if not os.path.isdir(_dir):
+            print('[cgen]     目录不存在: %s' % _dir)
+            print('[cgen]     修复: pwsh -File tools/gen_codegen.ps1')
+        else:
+            _files = [f for f in os.listdir(_dir)
+                      if f.endswith(('.pyd', '.so'))]
+            if not _files:
+                print('[cgen]     目录存在但没有 .pyd/.so: %s' % _dir)
+                print('[cgen]     修复: pwsh -File tools/gen_codegen.ps1')
+            else:
+                print('[cgen]     找到 %s 但加载失败（见上方原因）' % _files[0])
     _CGEN_CACHE[key] = mod
     return mod
 

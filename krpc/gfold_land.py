@@ -263,6 +263,104 @@ FINAL_KP = 1.0
 #     全程保持"能下降"，同时把低油门带的最低权限抬出 0.05 档。
 FINAL_THROTTLE_MIN = 0.12   # final 段油门下限（参考仓库为 throttle_limit_ctrl[0]=0.05）
 
+# ============================================================
+# 【2026-09-28 P0 修复】gfold 跟随段的【执行油门下限】
+# ============================================================
+# 【问题】gfold 段（不是 final 段）的油门下限原为硬编码 0.05，见
+#   track() 与 conic_clamp() 里的 min_mag = 0.05 * a_cap。
+#   实飞 gfold_log_20260928_113857.csv 证据：
+#       t=1.74 .. 9.58 连续 8.02 s  thr_cmd 恒等于 0.050
+#       同期 a_cmd_up 最大只有 2.52 m/s^2（全程未超过 g0=9.81）
+#       同期姿态目标向量逐位不变：tgt=(0.9030..0.9060, 0.0170..0.0350,
+#                                   0.4210..0.4280)
+#   而区间内 x_err 从 553.6 m 变到 203.6 m、v_err 从 52.3 变到 66.4
+#   —— 误差剧烈变化而指令纹丝不动，说明指令被【下限】钉死。
+#
+# 【为什么 0.05 对本载具是致命的，而不只是次优】
+#   本载具悬停油门 g0*m/T：m=152 t 时 = 0.1659。
+#   thr=0.05 给出 a_up = 0.05*8990137/152000 - 9.81 = -6.85 m/s^2，
+#   即【仅比自由落体 -9.81 好一点】。逐帧对照自由落体预测，实测高度
+#   变化几乎完全吻合（t=6.18 实测 -10.18 / 预测 -10.01；
+#   t=6.88 实测 -12.07 / 预测 -11.89）——全程没有任何制动力。
+#   需要的油门：在 vz=-68 m/s、剩余 200 m 时
+#       a_needed = vz^2/(2h) = 11.6 m/s^2
+#       thr_needed = (11.6+9.81)*152000/8990137 = 0.361
+#   即【物理需求 0.361，实际只给 0.050，仅 13.8%】。
+#
+# 【硬约束：下限必须 < 悬停油门 g0*m/T】
+#   下限是【节流下界】，一旦 >= g0*m/T，【光靠下限就在把火箭往上推】。
+#   gfold 段质量范围（实测）交班 156.9 t -> 段末约 152 t：
+#       m=156.9 t -> hover = 0.1712
+#       m=152.0 t -> hover = 0.1659
+#       m=149.0 t -> hover = 0.1626   <- 全程最紧（最轻时悬停最低）
+#   ⇒ 下限必须 < 0.1626（按【最轻】质量取，才保证全程都在下降）。
+#
+# 【我第一版取 0.35 —— 已用离线仿真证伪并废弃】
+#   0.35 > 0.171 会让载具【先减速到 0 再反冲上升】。细步长仿真
+#   （dt=0.05 s，初值 h=650 m / vz=-65 m/s / m=156 t，制动律
+#   a_des=vz^2/(2*h_rem)）：
+#       t= 6.00 s  h= 448.0  vz= -2.84
+#       t= 8.00 s  h= 463.6  vz= +17.88   <- 开始上升
+#       t=12.00 s  h= 619.0  vz= +59.32
+#       t=18.00 s  h=1163.0  vz=+121.48   <- 飞走
+#   ⇒ 与 final 段当初误取 0.30 时是【同一种失控】。0.35 已废弃。
+#
+# 【本次取值 0.16 —— 贴着约束上沿，取最大安全权限】
+#   a_up = 0.16*8990137/156900-9.81 = -0.64 m/s^2（156.9 t 时）
+#   仍【始终为负】⇒ 下限本身永远在让载具下降，安全。
+#   【为什么不取更低】姿态权限正比于油门（本载具靠 gimbal，实测
+#     thr=0.05 -> 10.05 deg/s^2，thr=0.12 -> 15.05，thr=0.5 -> 40.35），
+#     0.05 档的权限只有 10 deg/s^2，实测角速率却到 50~73 deg/s，
+#     必然追不上。0.16 把最低权限抬到约 18 deg/s^2，且不给反冲风险。
+#
+# 【重要：这只是 P0，不是完整修复】
+#   实测失败的【直接原因】是 PD 项被巨大误差饱和、再由 conic_clamp
+#   把指令幅度压到下限（t=1.74~9.58 的 tgt 向量逐位不变）。
+#   提高下限只能【抬高兜底权限】；根治要靠 P1（给 PD 项限幅）。
+#   本轮按用户要求【只做 P0】，下一飞验证后再做 P1。
+#
+# 【注意】这与 FINAL_THROTTLE_MIN=0.12 是【两套独立参数】：
+#     0.12 只作用于 final 段，gfold 段走 conic_clamp 的这个下限。
+GFOLD_THROTTLE_MIN = 0.16   # gfold 跟随段油门下限（原硬编码 0.05）
+
+# ============================================================
+# 【2026-09-28 新增】参考轨迹索引推进的修正参数
+# ============================================================
+# 【问题】日志 gfold_log_20260928_113857.csv 与 gfold_log_20260928_001430.csv
+#   双双在 t=9.58 处把 gfold_n_i 冻结在 50.80，此后直到触地（t=13.38，
+#   共 3.80 s、高度掉 203 m）所有规划量逐位不变：
+#       n_i=50.80 tf=10.5 plan_alt=238.53 plan_vz=-75.172 trk_pos=22.68
+#   即【规划的整个后半段（N=101 中的 50 个节点、约 5.3 s 轨迹）从未被使用】。
+#
+# 【机理】gfold_land.py:1185 的
+#       n_i = max(n_i - dt*0.2*N/tf, _raw_near)
+#   实测 n_i 在冻结期【掉 0.00 索引】，而衰减项 0.02*0.2*101/10.5=0.0385 帧
+#   若生效 3.8 s 应掉 7.31 索引（-> 43.5）。⇒ max() 取的是 _raw_near，
+#   且 _raw_near 本身被钉死。
+#   _raw_near 来自 find_nearest_index 的【纯位置 argmin】：
+#       mag = norm(x[0:3,i] - r)
+#   载具在 t=9.58 位于 alt=239.9，而节点 50.8 在 alt=238.5 —— 载具已越过
+#   该节点的最近点并继续下坠，argmin 永远粘在同一个节点上。
+#   【该 argmin 只能卡住、不能自愈】，因为度量里没有速度、也没有时间。
+#
+# 【与参考仓库的关系】dev/gfold/demo3_gfold.py:363 是逐字相同的写法，
+#   即这是【上游就有的缺陷】，不是移植错误。上游 demo 载具几乎不偏离轨迹，
+#   argmin 一直前进，缺陷不显形；本载具交班 vh 较大（实测 21.3 m/s，
+#   索引推进速率仅标称的 67%），一旦被轨迹追上就永久锁死。
+#
+# 【修法】三重保险，见 find_nearest_index 与 track：
+#   ① 度量里加回速度项（上游 demo3_gfold.py:262 自己注释掉的那一行）
+#   ② 索引单调不可回退（物理上时间不倒流）
+#   ③ 索引加【速率地板】n_i >= n_prev + 0.25*N/tf*dt —— 即使 argmin 粘住，
+#      索引也永远以不低于该速率前进，不会指着一个几秒前的旧点
+# ============================================================
+IDX_VEL_WEIGHT = 0.2    # ① 找最近点时的速度项权重（照抄上游被注释的 0.2）
+IDX_MONOTONIC = True    # ② 索引单调不可回退
+# ③ 【已废弃】曾加"索引速率地板"，实飞证明会造成灾难性失控（3/3 趟全败），
+#   已删除。详见 track() 里对应的长注释与 gfold_log_20260928_135111 的证据。
+#   教训：索引推进只能依赖【几何投影 + 单调】，绝不能依赖 dt_game ——
+#   该时间增量在主循环里因 `continue` 而长期不更新（实测最大 20.6 s）。
+
 # ---- 终端下降段：**逐项照抄 boot/B1040-7.ks**，只改载具相关的量 ----
 TERM_H = 15.0         # 终端门高度 [m]（B1040-7: 15 → 照抄）
 TERM_V = 2.0          # 触地下降率 [m/s]（B1040-7: 1.5 → 本项目指标 -2）
@@ -410,6 +508,11 @@ class Logger:
             'avel_p', 'avel_r', 'avel_y',
             # ---- ⑥ 姿态限速器 ----
             'slew_alpha', 'slew_wmax', 'slew_act', 'slew_err',
+            # ---- ⑦ 参考轨迹索引诊断（2026-09-28 修 n_i 冻结）----
+            #   idx_raw   : find_nearest_index 的原始投影（未加地板/单调）
+            #   idx_floor : 速率地板值 n_prev + 0.25*N/tf*dt
+            #   idx_frozen: 连续多少帧 n_i 完全不动（冻结计发）
+            'idx_raw', 'idx_floor', 'idx_frozen',
             'note']
 
     def __init__(self, enabled=True, name=None):
@@ -550,6 +653,9 @@ class GfoldLander:
         self._prev_tilt_act = float('nan')
         self._att_warned = False
         self.last_pkt = 0.02      # 上一帧游戏时间（供 track 的索引推进用）
+        # 【2026-09-28 修改③配套】连续多少帧 gfold_n_i 完全不动。
+        #   用于离线判读"索引是否又被 argmin 粘死"（本次失效的直接形态）。
+        self.idx_frozen_n = 0
         # 状态外推时长 [s]（参考仓库 vessel_profile1 的 est_time=0.5）。
         self.est_time = 0.5
         self.debug_lines = bool(DEBUG_LINES and not args.no_debug_lines)
@@ -1085,10 +1191,22 @@ class GfoldLander:
         【本项目补充的除零保护】原版 v_norm 为 0（轨迹末点速度=0）时会
         除零产生 inf/nan。这里在 v_norm 过小时直接返回 nearest_i。
         """
-        nearest_mag = float(np.linalg.norm(x[0:3, 0] - r))
+        # ============================================================
+        # 【2026-09-28 修改①：度量里加回速度项】
+        #   上游 demo3_gfold.py:262 本来就有这一项，但被作者自己注释掉了：
+        #       mag = npl.norm(x[0:3, i] - r) # + npl.norm(x[3:6, i] - v) * 0.2
+        #   纯位置度量下，只要载具越过轨迹的最近点，argmin 就永久粘住
+        #   （见文件头 IDX_VEL_WEIGHT 处的完整证据）。
+        #   加回速度项后，"位置近但速度方向已明显不符"的节点不再被选中，
+        #   argmin 会继续沿轨迹前进。
+        # ============================================================
+        _w = float(IDX_VEL_WEIGHT)
+        nearest_mag = (float(np.linalg.norm(x[0:3, 0] - r))
+                       + float(np.linalg.norm(x[3:6, 0] - v)) * _w)
         nearest_i = 0
         for i in range(x.shape[1]):
-            mag = float(np.linalg.norm(x[0:3, i] - r))
+            mag = (float(np.linalg.norm(x[0:3, i] - r))
+                   + float(np.linalg.norm(x[3:6, i] - v)) * _w)
             if mag < nearest_mag:
                 nearest_mag = mag
                 nearest_i = i
@@ -1102,7 +1220,6 @@ class GfoldLander:
             return float(nearest_i)
         frac = _clamp(float(np.dot(r - x[0:3, nearest_i], v_dir)) / denom,
                       0.5, -0.5)
-        _ = v
         return nearest_i + frac
 
     def sample_index(self, x, u, index, tf, N):
@@ -1182,10 +1299,53 @@ class GfoldLander:
         # 【n_i 必须夹到非负】详见下方长注释。
         _raw_near = self.find_nearest_index(x, error, vel, tf, N)
         self.gfold_traj_ready = _raw_near > -0.05
-        self.gfold_n_i = max(
-            n_i - dt_game * 0.2 * N / tf,
-            _raw_near)
+        _n_from_decay = n_i - dt_game * 0.2 * N / tf
+        self.gfold_n_i = max(_n_from_decay, _raw_near)
+        # ============================================================
+        # 【2026-09-28 修改②：索引单调不可回退】
+        #   参考轨迹索引是"沿轨迹的弧长参数"，物理上时间不倒流。
+        #   实测（gfold_log_20260928_113857.csv）n_i 推进速率只有标称的
+        #   67%，说明载具一直落在轨迹后方；此时若允许回退，会进一步
+        #   加剧"追不上"。强制单调。
+        # ============================================================
+        if IDX_MONOTONIC:
+            self.gfold_n_i = max(self.gfold_n_i, float(n_i))
+        # ============================================================
+        # 【2026-09-28 修改③：速率地板 —— 已废弃删除，不要再加回来】
+        # ------------------------------------------------------------
+        # 曾在此实现"索引每秒至少前进 IDX_MIN_RATE_FRAC*N/tf"：
+        #     _rate_floor = float(n_i) + _min_rate * dt_game
+        #     self.gfold_n_i = max(self.gfold_n_i, _rate_floor)
+        # 【实飞证明它会造成灾难性失控，3/3 趟全败】
+        #   证据 gfold_log_20260928_135111 / _140604 / _141655：
+        #     135111：n_i 在 t=5.31 冲到 79.00（=N-1，规划末端）而载具还在
+        #             470 m 高；此后 n_i/idx_raw 冻结在 79.00/25.26 长达 5 s。
+        #             sample_index(>=N-1) 返回 (0,0,0)/(0,0,0)/(g0,0,0)，
+        #             即【"已到达、只留重力补偿"】—— 制导以为已经到地面了。
+        #             结果 vz 从 -35 自由落体到 -65.7，vh 无控，最后 2 s 才刹车。
+        #     140604：n_i 在 1.6 s 内从 22.76 冲到 79.00，idx_floor 达 118.24。
+        #     141655：同型，idx_floor 达 108.83。
+        # 【根因：dt_game 不可信】
+        #   dt_game = self.last_pkt = game_dt = ut - game_prev_time
+        #   而主循环里 game_dt < 0.01 时 continue（跳过许多帧），
+        #   于是 game_prev_time 长时间不更新 ⇒ dt_game 严重失真。
+        #   实测 loop_dt：max=20.6 s、mean=12.1 s（真实帧间隔只有 ~0.16 s）！
+        #   1.90 idx/s × 20 s = 38 索引/帧 ⇒ 索引一帧就冲到末端。
+        # 【结论】索引推进只能依赖【几何投影 + 单调】，绝不能依赖时间增量。
+        #   修改①（速度项）与修改②（单调）已足够：实测三趟的 idx_raw 都
+        #   正常前进（跨度 31~54 索引），不再出现旧版那种 3.8 s 掉 0 的粘死。
+        # ============================================================
         self.gfold_n_i = max(0.0, self.gfold_n_i)
+        # 【夹到轨迹末端】sample_index 在 index>=N-1 时返回"到达"处理。
+        self.gfold_n_i = min(self.gfold_n_i, float(N) - 1.0)
+        # ---- ⑦ 诊断：把三个量都落盘，便于离线判断修复是否生效 ----
+        self.dbg_idx_raw = float(_raw_near)
+        self.dbg_idx_floor = 0.0   # 速率地板已删除，此列恒为 0（留列以免破坏日志格式）
+        if abs(self.gfold_n_i - float(n_i)) < 1e-9:
+            self.idx_frozen_n = int(getattr(self, 'idx_frozen_n', 0)) + 1
+        else:
+            self.idx_frozen_n = 0
+        self.dbg_idx_frozen = float(self.idx_frozen_n)
 
         x_i, v_i, u_i = self.sample_index(x, u, self.gfold_n_i, tf, N)
         step = min(1.5 * N / tf, float(np.linalg.norm(vel)) / 50.0 * N / tf)
@@ -1204,7 +1364,10 @@ class GfoldLander:
         target_a_ = u_i_ + (v_i_ - vel) * K_VEL + (x_i - error) * K_POS
 
         a_cap = self.v.max_thrust / max(1.0, self.v.mass)
-        min_mag = 0.05 * a_cap
+        # 【2026-09-28 P0】原为硬编码 0.05，导致 gfold 段全程油门被钉在
+        #   0.05（低于悬停 0.166）=> 近乎自由落体、无姿态权限。
+        #   详见文件头 GFOLD_THROTTLE_MIN 的长注释与实飞证据。
+        min_mag = GFOLD_THROTTLE_MIN * a_cap
         max_mag = 1.00 * a_cap
         # ---- 锥角：跟随【参考轨迹自己的倾角】----
         #   参考仓库用固定 25° 锥，因为它的轨迹由【同一个 25° 锥】解出来，
@@ -1285,7 +1448,9 @@ class GfoldLander:
         会除零（numpy 给 nan）。这里加了零向量保护，其余逐行一致。
         """
         a_cap = self.v.max_thrust / max(1.0, self.v.mass)
-        min_mag = 0.05 * a_cap
+        # 【2026-09-28 P0】与 track() 同步：由硬编码 0.05 改为常量。
+        #   两处必须一致，否则 track() 的限幅会被这里的下限二次改写。
+        min_mag = GFOLD_THROTTLE_MIN * a_cap
         max_mag = 1.0 * a_cap
         max_tilt = math.radians(CONIC_TILT_DEG if tilt_deg is None else tilt_deg)
         a_hor = float(np.linalg.norm(target_a[1:3]))
@@ -1535,6 +1700,10 @@ class GfoldLander:
             tgt_vy=_v(self.dbg_tgt, 1),
             tgt_vz=_v(self.dbg_tgt, 2),
             n_i=_f(self.dbg_n_i, 2),
+            # ---- ⑦ 参考轨迹索引诊断（2026-09-28 修 n_i 冻结）----
+            idx_raw=_f(getattr(self, 'dbg_idx_raw', None), 2),
+            idx_floor=_f(getattr(self, 'dbg_idx_floor', None), 2),
+            idx_frozen=_f(getattr(self, 'dbg_idx_frozen', None), 0),
             plan_alt=_f(self.dbg_plan_alt, 2),
             plan_vz=_f(self.dbg_plan_vz, 3),
             plan_vh=_f(self.dbg_plan_vh, 3),
@@ -1678,6 +1847,7 @@ class GfoldLander:
             self.gfold_n_i = -100.0
             # 新轨迹尚未定位 ⇒ 先当作"不可信"，由 track() 下一帧重新判定。
             self.gfold_traj_ready = False
+            self.idx_frozen_n = 0
             msg = self._pending_msg or ''
             print(f'[replan] #{self.replan_n} 采纳新轨迹  {msg}')
             self.log.note(f'replan #{self.replan_n} {msg}')
@@ -2000,6 +2170,54 @@ class GfoldLander:
             else:
                 acc = np.zeros(3)
             self.prev_vel = vel.copy()
+
+            # ================================================================
+            # 【2026-09-28 重大修复：game_prev_time 从未推进】
+            # ----------------------------------------------------------------
+            # 【症状】实飞日志 gfold_log_20260928_145755.csv 的 loop_dt 列
+            #   从 0.08 一路涨到 15.08，且【几乎等于 t】：
+            #       t= 1.17  loop_dt= 1.06
+            #       t= 5.04  loop_dt= 4.58
+            #       t=15.73  loop_dt=15.08
+            #   而真实帧间隔（相邻日志行的 t 差）只有 0.119~0.288 s（均值 0.190）。
+            #   ⇒ loop_dt 不是【帧间隔】，而是【自循环开始累计的游戏时间】，
+            #     平均偏大 40 倍，最大偏大 79 倍。
+            #
+            # 【根因】主循环开头（2042 行附近）
+            #       game_prev_time = self.sc.ut          # 只在循环【之前】赋一次
+            #       while True:
+            #           ut = self.sc.ut
+            #           game_dt = ut - game_prev_time    # 因此恒等于累计时间
+            #   循环体内【没有】game_prev_time = ut 这一句。
+            #
+            # 【参考仓库有这一句】dev/gfold/demo3_gfold.py:485
+            #       prev_vel = vel
+            #       game_prev_time = ut          <-- 就在循环末尾
+            #   即【移植时漏抄了一行】，不是设计如此。
+            #
+            # 【影响面（game_dt 的全部消费者）】
+            #   ① PID.update(err, game_dt)（1553/1559 行）
+            #        D 项 = kd * d(err)/dt，dt 偏大 40~79 倍
+            #        ⇒ D 项被压小同样倍数 ⇒ 姿态回路【退化成纯 P】。
+            #        实测 |pid_px|/|pid_dx| = 85:1，与这个推断一致。
+            #        I 项 = error*dt*ki，但 ki=0.0，暂不受影响。
+            #   ② tilt_rate = d(tilt_act)/game_dt（1599-1601 行）
+            #        实测最大只有 2.58 deg/s，真实应有数十 deg/s。
+            #   ③ acc = (vel - prev_vel)/game_dt（2168-2169 行）
+            #        外推用的加速度被压小同样倍数。
+            #   ④ self.last_pkt = game_dt（2050 行）→ track() 的 dt_game，
+            #        影响索引推进的衰减项。
+            #   ⇒ 这是【姿态始终不稳定的直接原因】：反馈回路里唯一的阻尼
+            #     通道被时间标度错误压死，只剩 P 项，必然极限环振荡。
+            #
+            # 【修法】照抄参考仓库：在循环体【末尾】推进 game_prev_time。
+            #   放在循环末尾（而不是开头）的原因：所有 continue 分支
+            #   （2156 / 2328 行）都会跳过本句，于是 game_dt 正确地累积
+            #   【自上次真正计算以来】经过的游戏时间 —— 这正是
+            #   game_dt < 0.01 时 continue 想要的语义（还没过一个物理帧
+            #   就不算）。参考仓库同样是 continue 在 339 行、赋值在 485 行。
+            # ================================================================
+            game_prev_time = ut
 
             # ================= 周期性重解（参考仓库 line 440-458）=================
             #   原版：只要 error[0] < start_altitude 就【开后台线程】重解，
