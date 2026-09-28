@@ -66,12 +66,15 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 #   而 gfold_p3p4.py / gfold_codegen.py 其实是【本项目自己写的】
 #   （上游 GFOLD_KSP 并未跟踪它们，见 dev/.gitignore 说明）。
 #   为了让它们能被版本控制，已复制到 dev/solver/，这里同步改路径。
-#   【两个位置都可用的写法】先找 ../solver（本项目仓库内），
-#   找不到再回退 ../gfold/solver（旧的克隆目录），保证两者都能跑。
-for _cand in (os.path.join(_HERE, '..', 'solver'),
-              os.path.join(_HERE, '..', 'gfold', 'solver')):
-    if os.path.isdir(_cand):
-        sys.path.insert(0, _cand)
+#   【两个位置都可用的写法】优先 ../solver（本项目仓库内），
+#   不存在时回退 ../gfold/solver（上游克隆目录），保证两者都能跑。
+#   【为什么不用 for 循环】tools/check_names.py 对模块级 for 的循环变量
+#   会先检查 load 再登记绑定，导致 _cand 被误报为"未定义"。
+#   这里改用显式两次判断，语义等价且静态检查干净。
+_SOLVER_DIR = os.path.join(_HERE, '..', 'solver')
+if not os.path.isdir(_SOLVER_DIR):
+    _SOLVER_DIR = os.path.join(_HERE, '..', 'gfold', 'solver')
+sys.path.insert(0, _SOLVER_DIR)
 
 from gfold_p3p4 import solve_p3p4_state        # noqa: E402 参考仓库结构
 
