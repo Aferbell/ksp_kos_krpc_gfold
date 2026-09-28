@@ -100,4 +100,5 @@ recovery/
 # ---- 实飞日志（体积大、多为二进制/时序数据）----
 #   日志本体在仓库外（log-B1040-9-gfold/ 与 log-B1040-9/），此处仅兜底。
 *.csv
-*.log
+*.log# ---- temp commit message file (not tracked) ----
+_cm.txt
