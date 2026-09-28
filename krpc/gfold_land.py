@@ -936,7 +936,18 @@ class GfoldLander:
         v_rot = self.body_rotation_speed()
         self.vrot_est = v_rot
         # 用与上一帧的位置差反推真实水平速率（位置口径，独立可信）
-        now = time.time()
+        #
+        # 【2026-09-28 修正：时间基准必须用【游戏时间】，不能用墙钟】
+        #   旧实现用 time.time()（墙钟）作 dtp，而 dp 是【游戏内位移】。
+        #   两者不同基准：KSP 掉帧/求解阻塞时墙钟远快于游戏时间，
+        #   于是 dtp 偏大 ⇒ vh_meas 被【低估】⇒ (vh - vh_meas) 虚高。
+        #   实测 log ..._154409 在门限段（alt~35 km、v~770 m/s）误报：
+        #       vh=240.4  vh_meas=69.8  v_rot=174.9
+        #   而同一趟飞行在 gfold 段的 vh 只有 18~19 m/s（远低于自转
+        #   174.9），vmag 与 sqrt(vz^2+vh^2) 逐帧吻合、dist_hz 平滑单调
+        #   下降 —— 说明【速度口径本来就是干净的】，是自检本身误报。
+        #   改用 self.sc.ut（游戏时间）后，dp 与 dtp 同基准。
+        now = float(self.sc.ut)
         if self._last_pos is not None:
             dtp = now - self._last_t
             if dtp > 0.05:
@@ -2500,7 +2511,6 @@ class GfoldLander:
                         alt=round(alt, 2), dist_hz=round(dist, 2),
                         vz=round(vz, 3), vh=round(vh, 3), vmag=round(vmag, 3),
                         mass=round(mass, 1), thr_cmd=round(self.thr_cmd, 4),
-                        thr_real=round(getattr(self, 'dbg_thr_real', float('nan')), 4),
                         a_cmd_up=round(float(hold[0]), 3),
                         a_cmd_h=round(float(np.linalg.norm(hold[1:3])), 3),
                         a_cmd_mag=round(float(np.linalg.norm(hold)), 3),
@@ -2676,7 +2686,6 @@ class GfoldLander:
                 alt=round(alt, 2), dist_hz=round(dist, 2),
                 vz=round(vz, 3), vh=round(vh, 3), vmag=round(vmag, 3),
                 mass=round(mass, 1), thr_cmd=round(getattr(self, 'thr_cmd', 0), 4),
-                thr_real=round(getattr(self, 'dbg_thr_real', float('nan')), 4),
                 a_cmd_up=round(float(target_a[0]), 3),
                 a_cmd_h=round(float(np.linalg.norm(target_a[1:3])), 3),
                 a_cmd_mag=round(float(np.linalg.norm(target_a)), 3),
