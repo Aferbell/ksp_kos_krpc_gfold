@@ -520,13 +520,25 @@ class Logger:
             'pid_px', 'pid_dx', 'pid_ix',
             'pid_out_x', 'pid_out_z', 'pid_out_r',
             'avel_p', 'avel_r', 'avel_y',
-            # ---- ⑥ 姿态限速器 ----
-            'slew_alpha', 'slew_wmax', 'slew_act', 'slew_err',
             # ---- ⑦ 参考轨迹索引诊断（2026-09-28 修 n_i 冻结）----
             #   idx_raw   : find_nearest_index 的原始投影（未加地板/单调）
-            #   idx_floor : 速率地板值 n_prev + 0.25*N/tf*dt
             #   idx_frozen: 连续多少帧 n_i 完全不动（冻结计发）
-            'idx_raw', 'idx_floor', 'idx_frozen',
+            'idx_raw', 'idx_frozen',
+            # ---- ⑧ 水平误差方向（2026-09-28 新增）----
+            #   【为什么必须加】此前只有 dist_hz（幅值）与 trk_pos_h（幅值），
+            #   无法判断"横向误差往哪边偏、控制器有没有反向修正"。
+            #   实测 log ..._154409：trk_pos_h 从 6 m 涨到 21 m 而 a_cmd_h
+            #   恒 3.75 —— 指令完全不响应误差，但只看幅值列无法定位原因。
+            #   这里补 4 列：误差的北/东分量 + 指令水平方向与误差方向的夹角。
+            'he_n', 'he_e', 'hd_n', 'hd_e', 'h_misalign',
+            # ---- ⑨ 真实执行器（2026-09-28 新增）----
+            #   thrust_n  = Vessel.thrust（真实推力，非回读缓存）
+            #   thr_real  = thrust / max_thrust（等效真实油门）
+            #   【为什么替换旧的 thr_act】旧列读 self.v.control.throttle，
+            #   那是 kRPC 自己的回读缓存，实测有 9/117 帧读到 0.0000 的
+            #   假值，会误导"执行器没跟上"的判断。Vessel.thrust 由引擎
+            #   实测求和，可信。
+            'thrust_n', 'thr_real',
             'note']
 
     def __init__(self, enabled=True, name=None):
@@ -633,6 +645,19 @@ class GfoldLander:
         self.dbg_dir = None          # 机头真实方向（surface 系，单位向量）
         self.dbg_tgt = None          # 目标方向（surface 系，单位向量）
         self.dbg_aim_err = float('nan')
+        # ---- ⑧ 水平误差方向（2026-09-28 新增）----
+        #   he_n/he_e : 载具到目标点的水平误差在【北/东】轴的分量 [m]
+        #   hd_n/hd_e : 指令水平方向（单位向量）在【北/东】轴的分量
+        #   h_misalign: 指令水平方向 与 误差方向 的夹角 [deg]
+        #               =0 表示正对目标修正；=180 表示修正方向反了
+        self.dbg_he_n = float('nan')
+        self.dbg_he_e = float('nan')
+        self.dbg_hd_n = float('nan')
+        self.dbg_hd_e = float('nan')
+        self.dbg_h_misalign = float('nan')
+        # ---- ⑨ 真实执行器（2026-09-28 新增）----
+        self.dbg_thrust_n = float('nan')
+        self.dbg_thr_real = float('nan')
         # 【2026-09-27 新增】参考轨迹采样点与真实跟踪误差（见 track() 赋值）。
         self.dbg_n_i = float('nan')
         self.dbg_plan_alt = float('nan')
@@ -1444,6 +1469,41 @@ class GfoldLander:
         self.dbg_trk_pos_up = float(_dpos[0])
         self.dbg_trk_pos_h = float(np.linalg.norm(_dpos[1:3]))
         self.dbg_trk_vel = float(np.linalg.norm(v_i - vel))
+        # ---- ⑧ 水平误差方向（2026-09-28 新增）----
+        #   【目的】dist_hz/trk_pos_h 只给幅值，无法回答：
+        #     · 横向误差往哪边偏？
+        #     · 指令有没有朝正确方向修？
+        #   实测 log ..._154409 里 trk_pos_h 从 6 m 涨到 21 m 而 a_cmd_h
+        #   恒 3.75 m/s^2 —— 只看幅值列完全查不出原因。
+        #
+        #   口径：目标系 [1] = 北, [2] = 东（见 state() 的注释）。
+        #     he_* = error 的水平分量 = 载具相对瞄准点的偏移（正=载具偏北/偏东）
+        #     hd_* = target_a 水平分量的单位方向（指令要往哪边推）
+        #   h_misalign = hd 与 (he 的反方向) 的夹角。
+        #     控制器应把载具推回瞄准点，即指令方向应【指向 -he】。
+        #     =0   => 修正方向正确
+        #     =90  => 指令与误差正交（纯粹在打转）
+        #     =180 => 修正方向反了（正反馈，会发散）
+        _he = np.array([float(error[1]), float(error[2])])
+        _hd = np.array([float(target_a[1]), float(target_a[2])])
+        _he_norm = float(np.linalg.norm(_he))
+        _hd_norm = float(np.linalg.norm(_hd))
+        self.dbg_he_n = float(_he[0])
+        self.dbg_he_e = float(_he[1])
+        if _hd_norm > 1e-9:
+            self.dbg_hd_n = float(_hd[0] / _hd_norm)
+            self.dbg_hd_e = float(_hd[1] / _hd_norm)
+        else:
+            self.dbg_hd_n = 0.0
+            self.dbg_hd_e = 0.0
+        if _he_norm > 1e-6 and _hd_norm > 1e-9:
+            # 期望方向 = -he / |he|
+            _want = -_he / _he_norm
+            _cosm = float(np.dot(_hd / _hd_norm, _want))
+            self.dbg_h_misalign = math.degrees(
+                math.acos(max(-1.0, min(1.0, _cosm))))
+        else:
+            self.dbg_h_misalign = float('nan')
         return target_a, self.gfold_n_i
 
     def _gfold_floor(self, a_cap, mass):
@@ -1713,6 +1773,26 @@ class GfoldLander:
                 print(f'[WARN] 姿态控制异常: {type(e).__name__}: {e}')
         return throttle
 
+    def _read_actuator(self):
+        """读【真实执行器状态】：推力与等效油门。
+
+        【为什么不用 control.throttle】那是 kRPC 的写入回读缓存，
+          实测 log ..._154409 有 9/117 帧读到 0.0000 的假值，
+          会被误判成【执行器没跟上】。而 Vessel.thrust 是
+          SpaceCenter.Engine.thrust 的实测求和，可信。
+
+        【实现】只读 thrust 与 max_thrust 两次轻量 RPC；
+          异常时保留上一帧值（写 nan 会让日志出现空洞）。
+        """
+        try:
+            _th = float(self.v.thrust)
+            _tmax = float(self.v.max_thrust)
+            self.dbg_thrust_n = _th
+            if _tmax > 1e-6:
+                self.dbg_thr_real = _th / _tmax
+        except Exception:                            # noqa: BLE001
+            pass
+
     def _dbg_cols(self):
         """【2026-09-27 新增】产出"真实姿态 + 参考轨迹点 + 真实跟踪误差"各列。
 
@@ -1764,8 +1844,16 @@ class GfoldLander:
             n_i=_f(self.dbg_n_i, 2),
             # ---- ⑦ 参考轨迹索引诊断（2026-09-28 修 n_i 冻结）----
             idx_raw=_f(getattr(self, 'dbg_idx_raw', None), 2),
-            idx_floor=_f(getattr(self, 'dbg_idx_floor', None), 2),
             idx_frozen=_f(getattr(self, 'dbg_idx_frozen', None), 0),
+            # ---- ⑧ 水平误差方向（新增）----
+            he_n=_f(getattr(self, 'dbg_he_n', None), 2),
+            he_e=_f(getattr(self, 'dbg_he_e', None), 2),
+            hd_n=_f(getattr(self, 'dbg_hd_n', None), 3),
+            hd_e=_f(getattr(self, 'dbg_hd_e', None), 3),
+            h_misalign=_f(getattr(self, 'dbg_h_misalign', None), 1),
+            # ---- ⑨ 真实执行器（新增）----
+            thrust_n=_f(getattr(self, 'dbg_thrust_n', None), 0),
+            thr_real=_f(getattr(self, 'dbg_thr_real', None), 4),
             plan_alt=_f(self.dbg_plan_alt, 2),
             plan_vz=_f(self.dbg_plan_vz, 3),
             plan_vh=_f(self.dbg_plan_vh, 3),
@@ -1797,12 +1885,13 @@ class GfoldLander:
             # 【写法】先取一次局部量再索引，避免 Pylance 对
             #   "getattr(..., default)[i]" 推断成 Any/Optional 而报错。
             avel_p=_av_c(0), avel_r=_av_c(1), avel_y=_av_c(2),
-            # ---- ⑥ 姿态限速器 ----
-            slew_alpha=_f(getattr(self, '_slew_alpha', None), 2),
-            slew_wmax=_f(getattr(self, '_slew_wmax', None), 2),
-            slew_act=(1 if getattr(self, '_slew_active', False) else 0),
-            slew_err=_f(getattr(self, '_slew_err', None), 2),
         )
+        # 【2026-09-28 删除 slew_* 四列】
+        #   姿态限速器（_slew_limit）已在早前证明【无效并整体移除】：
+        #   log ..._001430 的 69 帧里只有 1 帧真正被限速，slew_err 恒为 0。
+        #   它限制的是【设定值速率】而失败时设定值是静止的。
+        #   移除后这四列恒为空/0，属于死列，已从 COLS 与这里一并删除，
+        #   避免"日志里有但永远是空"误导排查（本题就是被它误导过）。
 
     def verify_takeover_step(self):
         """接管校验（**非阻塞**）：每帧采一个样本，够数后判定。
@@ -2182,6 +2271,9 @@ class GfoldLander:
             alt, dist, vz, vh, vmag, mass, tp, tv = self.state()
             tt = time.time() - t0
             self.dbg_rpc_ms = (time.time() - _t_rpc) * 1000.0
+            # actuator sample: real thrust, not the throttl readback
+            if not self.args.dry_run:
+                self._read_actuator()
 
             # ================================================================
             # 【2026-09-28 新增：检测【游戏被暂停】导致的状态冻结】
@@ -2408,7 +2500,7 @@ class GfoldLander:
                         alt=round(alt, 2), dist_hz=round(dist, 2),
                         vz=round(vz, 3), vh=round(vh, 3), vmag=round(vmag, 3),
                         mass=round(mass, 1), thr_cmd=round(self.thr_cmd, 4),
-                        thr_act=round(self.v.control.throttle, 4),
+                        thr_real=round(getattr(self, 'dbg_thr_real', float('nan')), 4),
                         a_cmd_up=round(float(hold[0]), 3),
                         a_cmd_h=round(float(np.linalg.norm(hold[1:3])), 3),
                         a_cmd_mag=round(float(np.linalg.norm(hold)), 3),
@@ -2565,14 +2657,26 @@ class GfoldLander:
             #   避免一个 TypeError 让整个 kRPC 进程退出（火箭失控）。
             _plan = self.plan
             _tf = float(_plan['tf']) if _plan is not None else 0.0
-            _hmin = (float(_plan['x'][0, :].min())
-                     if _plan is not None else 0.0)
+            # 【2026-09-28 修正 h_min_plan】
+            #   旧实现取 plan['x'][0,:].min() —— 那是【整条规划的最低高度】，
+            #   而规划本来就要落到地面，所以它恒为 ~0（实测 117/117 帧都是
+            #   -0.0）。它是【规划的不变量】，逐帧记录毫无信息量。
+            #   改为记录【规划在当前索引处的高度】= 此刻"应该在哪"，
+            #   与 alt 并列即可一眼看出领先/滞后。
+            _hmin = float('nan')
+            if _plan is not None:
+                try:
+                    _N = _plan['x'].shape[1]
+                    _j = int(max(0, min(_N - 1, round(self.gfold_n_i))))
+                    _hmin = float(_plan['x'][0, _j])
+                except Exception:                    # noqa: BLE001
+                    _hmin = float('nan')
             self.log.row(
                 t=round(tt, 3), wall=round(time.time(), 2),
                 alt=round(alt, 2), dist_hz=round(dist, 2),
                 vz=round(vz, 3), vh=round(vh, 3), vmag=round(vmag, 3),
                 mass=round(mass, 1), thr_cmd=round(getattr(self, 'thr_cmd', 0), 4),
-                thr_act=round(self.v.control.throttle, 4),
+                thr_real=round(getattr(self, 'dbg_thr_real', float('nan')), 4),
                 a_cmd_up=round(float(target_a[0]), 3),
                 a_cmd_h=round(float(np.linalg.norm(target_a[1:3])), 3),
                 a_cmd_mag=round(float(np.linalg.norm(target_a)), 3),
