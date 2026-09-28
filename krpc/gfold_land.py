@@ -305,23 +305,37 @@ FINAL_THROTTLE_MIN = 0.12   # final 段油门下限（参考仓库为 throttle_l
 #       t=18.00 s  h=1163.0  vz=+121.48   <- 飞走
 #   ⇒ 与 final 段当初误取 0.30 时是【同一种失控】。0.35 已废弃。
 #
-# 【本次取值 0.16 —— 贴着约束上沿，取最大安全权限】
-#   a_up = 0.16*8990137/156900-9.81 = -0.64 m/s^2（156.9 t 时）
-#   仍【始终为负】⇒ 下限本身永远在让载具下降，安全。
-#   【为什么不取更低】姿态权限正比于油门（本载具靠 gimbal，实测
-#     thr=0.05 -> 10.05 deg/s^2，thr=0.12 -> 15.05，thr=0.5 -> 40.35），
-#     0.05 档的权限只有 10 deg/s^2，实测角速率却到 50~73 deg/s，
-#     必然追不上。0.16 把最低权限抬到约 18 deg/s^2，且不给反冲风险。
+# 【2026-09-28 二次修正：固定 0.16 -> 相对悬停的比例】
+#   【固定值 0.16 的问题（审计 MEDIUM-2，CONFIRMED）】
+#     0.16 是按【交班时质量 156.9 t】取的，但 gfold 段质量会一路掉。
+#     悬停油门 g0*m/T 随质量下降而下降：
+#         m=156.9 t -> 0.1712
+#         m=152.0 t -> 0.1659
+#         m=149.0 t -> 0.1626
+#         m=143.4 t -> 0.1563
+#         m=136.8 t -> 0.1492
+#     ⇒ 当 m < 149 t 时 0.16 > 悬停，【下限本身就在把火箭往上推】，
+#       与当初误取 0.35 是同一类失控（只是更温和）。
+#     实飞 gfold_log_20260928_150946.csv 末端 m 已到 136.8 t ——
+#     那趟恰好已进 final 段（走 FINAL_THROTTLE_MIN）逃过，
+#     但 gfold 段一旦拖长就会中招。
 #
-# 【重要：这只是 P0，不是完整修复】
-#   实测失败的【直接原因】是 PD 项被巨大误差饱和、再由 conic_clamp
-#   把指令幅度压到下限（t=1.74~9.58 的 tgt 向量逐位不变）。
-#   提高下限只能【抬高兜底权限】；根治要靠 P1（给 PD 项限幅）。
-#   本轮按用户要求【只做 P0】，下一飞验证后再做 P1。
+#   【修法】下限按【悬停油门的比例】给出，自动跟随质量：
+#         floor = GFOLD_THROTTLE_MARGIN * (g0*m/T)
+#     取 MARGIN=0.96 ⇒ 恒定留 4%% 的下降余量，任何质量下都安全。
+#     同时保留一个绝对值上限 0.16：交班时 0.96*0.1712 = 0.164 > 0.16，
+#     取小者 ⇒ 行为与原来接近（不牺牲已有权限）。
+#
+#   【为什么不用更低的下限】姿态权限正比于油门（本载具靠 gimbal，实测
+#     thr=0.05 -> 10.05 deg/s^2，thr=0.12 -> 15.05，thr=0.5 -> 40.35）。
+#     0.05 档的权限只有 10 deg/s^2，而实测角速率达 50~73 deg/s，
+#     必然追不上；故下限要尽量贴近悬停但不越过。
 #
 # 【注意】这与 FINAL_THROTTLE_MIN=0.12 是【两套独立参数】：
-#     0.12 只作用于 final 段，gfold 段走 conic_clamp 的这个下限。
-GFOLD_THROTTLE_MIN = 0.16   # gfold 跟随段油门下限（原硬编码 0.05）
+#     0.12 只作用于 final 段（该段必须能持续下降），
+#     gfold 段走 conic_clamp 的这个下限。
+GFOLD_THROTTLE_MARGIN = 0.96   # gfold 段下限 = 该值 * 悬停油门
+GFOLD_THROTTLE_MIN = 0.16      # 兼容旧名的绝对上限（实际由上式取小）
 
 # ============================================================
 # 【2026-09-28 新增】参考轨迹索引推进的修正参数
@@ -1366,8 +1380,10 @@ class GfoldLander:
         a_cap = self.v.max_thrust / max(1.0, self.v.mass)
         # 【2026-09-28 P0】原为硬编码 0.05，导致 gfold 段全程油门被钉在
         #   0.05（低于悬停 0.166）=> 近乎自由落体、无姿态权限。
-        #   详见文件头 GFOLD_THROTTLE_MIN 的长注释与实飞证据。
-        min_mag = GFOLD_THROTTLE_MIN * a_cap
+        # 【二次修正】再由固定 0.16 改为【相对悬停的比例】——固定值在
+        #   质量掉到 149 t 以下时会超过悬停，下限自己把火箭往上推。
+        #   详见文件头 GFOLD_THROTTLE_MARGIN 的长注释。
+        min_mag = self._gfold_floor(a_cap, self.v.mass)
         max_mag = 1.00 * a_cap
         # ---- 锥角：跟随【参考轨迹自己的倾角】----
         #   参考仓库用固定 25° 锥，因为它的轨迹由【同一个 25° 锥】解出来，
@@ -1387,11 +1403,26 @@ class GfoldLander:
         #   >=0，所以改用等价的独立标志 gfold_traj_ready：
         #   当 find_nearest_index 的原始投影 < -0.05 时，说明本机落在轨迹
         #   起点之外、PD 的位置/速度项不可信 ⇒ 只跟随 u_i，不做修正。
-        #   降级分支也要过锥限幅（本项目 u_i 是求解器输出、可能超出当前锥角）。
+        # ============================================================
+        # 【2026-09-28 修复：本分支【不得】再过锥限幅】
+        #   参考仓库 demo3_gfold.py 的顺序是：
+        #       line 389-390  target_a / target_a_ = conic_clamp(...)
+        #       line 391-392  if n_i < 0: target_a = [g0,0,0] + u_i
+        #   即【降级赋值发生在限幅之后】，限幅【不再作用于它】。
+        #   原实现把降级值又夹了一次，于是：
+        #     · 一旦 u_i 超出当前锥角，指令被钉在锥壁上 → 姿态目标
+        #       向量恒定不变
+        #     · 实测 gfold_log_20260928_113857.csv t=9.74~13.38：
+        #       tgt=(0.906, 0.0xx, 0.421) 逐位不变、a_cmd_h 恒 1.17、
+        #       a_cmd_up 恒 2.5，vh 全程无控增长到触地 111 m/s。
+        #   ⇒ 照抄参考仓库：降级值【直接使用】，不再限幅。
+        #     u_i 本身来自求解器（受 pcs 锥约束），是可信的；
+        #     降级分支的语义就是【放弃 PD 修正，只跟规划推力】。
+        # ============================================================
         if not self.gfold_traj_ready:
             _deg = np.array([G0, 0.0, 0.0]) + u_i
-            target_a = self.conic_clamp(_deg, min_mag, max_mag, tilt_now)
-            target_a_ = target_a
+            target_a = _deg
+            target_a_ = _deg
 
         self.target_direction = target_a_ / max(1e-09, float(np.linalg.norm(target_a_)))
         self.a_cmd_vec = target_a
@@ -1414,6 +1445,36 @@ class GfoldLander:
         self.dbg_trk_pos_h = float(np.linalg.norm(_dpos[1:3]))
         self.dbg_trk_vel = float(np.linalg.norm(v_i - vel))
         return target_a, self.gfold_n_i
+
+    def _gfold_floor(self, a_cap, mass):
+        """gfold 段【执行油门下限】对应的加速度幅值下限 [m/s^2]。
+
+        【为什么需要这个函数（审计 MEDIUM-2，CONFIRMED）】
+          原先写死 GFOLD_THROTTLE_MIN=0.16。那个值是按交班质量 156.9 t
+          取的，但 gfold 段质量会一路掉到 136~149 t，而悬停油门
+          g0*m/T 随质量下降而下降：
+              m=156.9 t -> 0.1712    m=149.0 t -> 0.1626
+              m=143.4 t -> 0.1563    m=136.8 t -> 0.1492
+          ⇒ 当 m < 149 t 时 0.16 > 悬停，【下限本身就在把火箭往上推】，
+            与当初误取 0.35 是同一类失控（只是更温和）。
+
+        【修法】下限 = 该质量下悬停油门的 GFOLD_THROTTLE_MARGIN 倍，
+          并再取一个绝对值上限 GFOLD_THROTTLE_MIN：
+              floor = min(GFOLD_THROTTLE_MIN,
+                          GFOLD_THROTTLE_MARGIN * g0*m/T)
+          这样：
+            · 质量大时（交班）  0.96*0.1712 = 0.164 > 0.16 ⇒ 取 0.16
+              （与修改前一致，不牺牲已有权限）
+            · 质量小时（m=136.8t）0.96*0.1492 = 0.143 < 0.16 ⇒ 取 0.143
+              （恒留 4% 的下降余量，不会反冲）
+
+        【返回值】下限对应的加速度幅值 = floor * a_cap。
+          调用方用的是加速度域（min_mag），故这里直接换算好。
+        """
+        _m = max(1.0, float(mass))
+        _hover = G0 * _m / max(1.0, float(self.v.max_thrust))
+        floor = min(GFOLD_THROTTLE_MIN, GFOLD_THROTTLE_MARGIN * _hover)
+        return floor * a_cap
 
     def conic_clamp(self, target_a, min_mag, max_mag, tilt_deg=None):
         """把推力加速度指令限幅到推力锥内。
@@ -1448,9 +1509,10 @@ class GfoldLander:
         会除零（numpy 给 nan）。这里加了零向量保护，其余逐行一致。
         """
         a_cap = self.v.max_thrust / max(1.0, self.v.mass)
-        # 【2026-09-28 P0】与 track() 同步：由硬编码 0.05 改为常量。
+        # 【2026-09-28 P0】与 track() 同步：由硬编码 0.05 改为下限常量。
         #   两处必须一致，否则 track() 的限幅会被这里的下限二次改写。
-        min_mag = GFOLD_THROTTLE_MIN * a_cap
+        #   【二次修正】同样改为相对悬停的比例，见 _gfold_floor()。
+        min_mag = self._gfold_floor(a_cap, self.v.mass)
         max_mag = 1.0 * a_cap
         max_tilt = math.radians(CONIC_TILT_DEG if tilt_deg is None else tilt_deg)
         a_hor = float(np.linalg.norm(target_a[1:3]))
