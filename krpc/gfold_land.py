@@ -533,12 +533,41 @@ class Logger:
             'he_n', 'he_e', 'hd_n', 'hd_e', 'h_misalign',
             # ---- ⑨ 真实执行器（2026-09-28 新增）----
             #   thrust_n  = Vessel.thrust（真实推力，非回读缓存）
-            #   thr_real  = thrust / max_thrust（等效真实油门）
+            #   thr_real  = thrust / available_thrust（等效真实油门）
             #   【为什么替换旧的 thr_act】旧列读 self.v.control.throttle，
             #   那是 kRPC 自己的回读缓存，实测有 9/117 帧读到 0.0000 的
             #   假值，会误导"执行器没跟上"的判断。Vessel.thrust 由引擎
             #   实测求和，可信。
             'thrust_n', 'thr_real',
+            # ---- ⑩ 姿态失守诊断（2026-09-28 新增，为定位发散根因）----
+            #   【背景】连续 4 趟实飞的姿态都以同一形状发散：
+            #       |tilt_act - tilt_cmd| 最大 57~83 deg，avel 最大 61~85 deg/s
+            #   我用"角度+角速度+饱和继电器"建过二阶模型，【它在实飞发散
+            #   的地方却收敛】—— 说明模型缺了真正的失稳机制。现有日志
+            #   无法区分下面三个候选，故补这些列。
+            #
+            #   候选 1：姿态权限随油门/倾角剧烈变化（实测 alpha_max 从 5.4
+            #           跳到 81.9，差 15 倍），而 PID 增益是常数。
+            #      -> atq_thr  : 采样姿态权限那一刻的【真实油门】，
+            #                    用于把 alpha_max 与油门对齐（过去两列分开，
+            #                    无法判断"权限低"是不是只是油门低）。
+            #      -> atq_floor: 该帧油门是否被下限钉住（1=是）。
+            #
+            #   候选 2：大倾角下俯仰/偏航不再解耦，两轴同时饱和。
+            #      -> pid_sat_x / pid_sat_z : 该轴输出是否饱和到 +-1。
+            #      -> pid_sat_run           : 两轴【同时】饱和的连续帧数。
+            #
+            #   候选 3：tilt_act 只是"机头与天顶的夹角"（标量），而控制律
+            #           用的是机体系三轴角度；大倾角+大偏航时两者不等价。
+            #      -> nose_n/e : 机头水平方向在北/东轴的分量（单位向量），
+            #                    与 dir_v* 三联可还原机头三维朝向。
+            #      -> nose_az  : 机头水平方位角 [deg]（0=北，90=东）；
+            #                    与 tgt_az 对比即可看出"指向错了多少"。
+            #      -> tgt_az   : 指令水平方位角 [deg]（同口径）。
+            #      -> az_err   : 方位角之差 [-180,180]；|az_err| 大而
+            #                    tilt 差小 = 候选 3 成立。
+            'atq_thr', 'atq_floor', 'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
+            'nose_n', 'nose_e', 'nose_az', 'tgt_az', 'az_err',
             'note']
 
     def __init__(self, enabled=True, name=None):
@@ -658,6 +687,21 @@ class GfoldLander:
         # ---- ⑨ 真实执行器（2026-09-28 新增）----
         self.dbg_thrust_n = float('nan')
         self.dbg_thr_real = float('nan')
+        # ---- ⑩ 姿态失守诊断（2026-09-28 新增，见 Logger.COLS 的说明）----
+        self.dbg_atq_thr = float('nan')
+        self.dbg_atq_floor = float('nan')
+        self.dbg_pid_sat_x = float('nan')
+        self.dbg_pid_sat_z = float('nan')
+        self.dbg_pid_sat_run = 0.0
+        self.dbg_nose_n = float('nan')
+        self.dbg_nose_e = float('nan')
+        self.dbg_nose_az = float('nan')
+        self.dbg_tgt_az = float('nan')
+        self.dbg_az_err = float('nan')
+        # 两轴同时饱和的连续帧计数（跨帧状态）
+        self._sat_run = 0
+        # gfold 段本帧的油门下限（比例），供 atq_floor 判断用
+        self.thr_floor_last = float('nan')
         # 【2026-09-27 新增】参考轨迹采样点与真实跟踪误差（见 track() 赋值）。
         self.dbg_n_i = float('nan')
         self.dbg_plan_alt = float('nan')
@@ -741,7 +785,17 @@ class GfoldLander:
         body = v.orbit.body
         fl = v.flight(body.reference_frame)
         ms = v.mass
-        th = v.max_thrust
+        # 【2026-09-28】用 available_thrust（含推力限幅 + 当前大气）而非 max_thrust。
+        #   理由同 a_cap_real()：本载具一级限幅 150%，
+        #   max_thrust 会把 a_net 低估 50%，
+        #   而候选筛选的阈值（15~80）与【取最接近 50】是按真实值标定的。
+        _th_exc = None
+        try:
+            th = float(v.available_thrust)
+        except Exception:                            # noqa: BLE001
+            th = float(v.max_thrust)
+            _th_exc = True
+        _ = _th_exc
         a_net = (th / ms - 9.80665) if ms > 1 else float('-inf')
         return dict(v=v, name=v.name, mass=ms, thrust=th, a_net=a_net,
                     alt=fl.surface_altitude, vspeed=fl.vertical_speed,
@@ -1143,7 +1197,7 @@ class GfoldLander:
 
         返回净加速度 [ax, ay, az]（含重力）。
         """
-        a_cap = self.v.max_thrust / max(1.0, mass)
+        a_cap = self.a_cap_real(mass)
         vmag = float(np.linalg.norm(vel))
         if vmag <= 1e-06:
             return np.array([0.0, 0.0, 0.0])
@@ -1168,15 +1222,16 @@ class GfoldLander:
         这与参考仓库 GFOLD_run.solver 的 self.x0 口径一致，
         也是 PD 能直接做 `x_i - error` 相减的前提（详见 gfold_p3p4.py 说明）。
         """
-        a_net = self.v.max_thrust / mass - 9.80665
+        a_net = self.a_cap_real(mass) - 9.80665
         alt = float(x0_state[0]) + TARGET_ALT
         dist = math.hypot(float(x0_state[1]), float(x0_state[2]))
         vz = float(x0_state[3])
         vh = math.hypot(float(x0_state[4]), float(x0_state[5]))
         if a_net < 1.0:
             print(f'[G-FOLD] 预检失败：a_net = {a_net:.2f} m/s²（推重比过低）')
-            print(f'          mass={mass/1000:.1f} t  max_thrust='
-                  f'{self.v.max_thrust/1e6:.2f} MN')
+            print(f'          mass={mass/1000:.1f} t  available_thrust='
+                  f'{self.v.available_thrust/1e6:.2f} MN '
+                  f'(max_thrust={self.v.max_thrust/1e6:.2f} MN)')
             print('          这艘船物理上无法着陆 —— 多半是【选错了 vessel】')
             print(f'          当前 vessel={self.v.name!r}；'
                   '用 --vessel-name 指定回收一级')
@@ -1189,7 +1244,7 @@ class GfoldLander:
         r = solve_p3p4_state(
             x0_state, mass,
             isp=ISP_DEFAULT,
-            t_max=self.v.max_thrust,
+            t_max=self.v.available_thrust,
             throttle=(0.1, 0.8),
             tf_guess=TF_GUESS,
             straight_fac=STRAIGHT_FAC,
@@ -1413,7 +1468,7 @@ class GfoldLander:
         target_a = u_i + (v_i - vel) * K_VEL + (x_i - error) * K_POS
         target_a_ = u_i_ + (v_i_ - vel) * K_VEL + (x_i - error) * K_POS
 
-        a_cap = self.v.max_thrust / max(1.0, self.v.mass)
+        a_cap = self.a_cap_real()
         # 【2026-09-28 P0】原为硬编码 0.05，导致 gfold 段全程油门被钉在
         #   0.05（低于悬停 0.166）=> 近乎自由落体、无姿态权限。
         # 【二次修正】再由固定 0.16 改为【相对悬停的比例】——固定值在
@@ -1517,6 +1572,53 @@ class GfoldLander:
             self.dbg_h_misalign = float('nan')
         return target_a, self.gfold_n_i
 
+    def a_cap_real(self, mass=None):
+        """【真实可用推力加速度】= available_thrust / mass [m/s^2]。
+
+        【为什么必须用 available_thrust 而不是 max_thrust】
+          2026-09-28 实飞事故（用户发现）：本载具一级 9 台 SSME 在 craft
+          文件里被设为 thrustPercentage = 150。
+          kRPC 官方文档（本地 krpc/services/spacecenter.py）明确：
+            · Engine.max_thrust
+                thrust ... with its throttle AND throttle limiter set to 100%
+                ⇒ 【不含】150% 限幅
+            · Engine.available_thrust
+                takes the engine current thrust_limit and atmospheric
+                conditions into account
+                ⇒ 【含】150% 限幅
+            · Vessel.max_thrust / available_thrust = 各引擎对应量之和
+          实测：Vessel.max_thrust = 9 x 1000kN = 8.99 MN（日志里就是这个）
+                 Vessel.available_thrust = 9 x 1000kN x 1.5 = 13.5 MN
+                 （用户在游戏内读到 13500 kN，与后者一致）
+
+        【原来错在哪】全文件把 v.max_thrust 当 a_cap，于是：
+          · 控制器：throttle = |target_a| / a_cap 被高估 1.5 倍
+            ⇒ 我按 0.16 设的 gfold 油门下限，相对【真实】悬停点
+              (g0*m/T_real = 0.111) 其实是 1.44 倍 ⇒ 【下限自己在把
+              火箭往上推】。这正是此前一直查不出的【被顶上去】的原因。
+          · 求解器：t_max 传的是 8.99e6，等于让求解器【按一台弱 50% 的
+            火箭规划】⇒ 规划出更长的 tf、更大的油门 ⇒ 载具执行时冲过头。
+
+        【为什么用 available_thrust 更好】它同时含【当前限幅】与【当前大气
+          条件】，因此：
+            · 用户改限幅（100% / 150% / TweakScale）无需改代码
+            · 高空真空推力与地面海平面推力会自动区分
+
+        【调用方式】不传参时用实时 body mass。传 mass 可复用已读到的值，
+          避免多一次 RPC。
+        """
+        _m = max(1.0, float(self.v.mass if mass is None else mass))
+        try:
+            _t = float(self.v.available_thrust)
+        except Exception:                            # noqa: BLE001
+            # 【兜底】旧版 kRPC 或异常时退回 max_thrust，并只告警一次。
+            if not getattr(self, '_avail_warned', False):
+                self._avail_warned = True
+                print('[WARN] available_thrust 不可用，退回 max_thrust')
+                print('[WARN] 若载具用了推力限幅，油门会偏大 1/limiter 倍')
+            _t = float(self.v.max_thrust)
+        return _t / _m
+
     def _gfold_floor(self, a_cap, mass):
         """gfold 段【执行油门下限】对应的加速度幅值下限 [m/s^2]。
 
@@ -1543,7 +1645,8 @@ class GfoldLander:
           调用方用的是加速度域（min_mag），故这里直接换算好。
         """
         _m = max(1.0, float(mass))
-        _hover = G0 * _m / max(1.0, float(self.v.max_thrust))
+        # 【2026-09-28】悬停点必须用【真实可用推力】，否则含限幅的载具会把下限算高
+        _hover = G0 * _m / max(1.0, float(self.v.available_thrust))
         floor = min(GFOLD_THROTTLE_MIN, GFOLD_THROTTLE_MARGIN * _hover)
         return floor * a_cap
 
@@ -1579,7 +1682,7 @@ class GfoldLander:
         唯一改动：参考里 `hor_dir /= npl.norm(hor_dir)` 在水平分量为 0 时
         会除零（numpy 给 nan）。这里加了零向量保护，其余逐行一致。
         """
-        a_cap = self.v.max_thrust / max(1.0, self.v.mass)
+        a_cap = self.a_cap_real()
         # 【2026-09-28 P0】与 track() 同步：由硬编码 0.05 改为下限常量。
         #   两处必须一致，否则 track() 的限幅会被这里的下限二次改写。
         #   【二次修正】同样改为相对悬停的比例，见 _gfold_floor()。
@@ -1637,11 +1740,17 @@ class GfoldLander:
         """
         # ---- 节流（原版 line 398, 405）----
         mag = float(np.linalg.norm(target_a))
-        a_cap = self.v.max_thrust / max(1.0, self.v.mass)
+        a_cap = self.a_cap_real()
         throttle = mag / a_cap if a_cap > 1e-9 else 0.0
         throttle = _clamp(throttle, 1.0, 0.0)
         self.v.control.throttle = throttle
         self.thr_cmd = throttle
+        # 【2026-09-28】记住本帧的 gfold 段油门下限（= 悬停的比例），
+        #   供诊断列 atq_floor 判断"油门是否被下限钉住"。
+        try:
+            self.thr_floor_last = self._gfold_floor(a_cap, self.v.mass) / a_cap
+        except Exception:                            # noqa: BLE001
+            self.thr_floor_last = float('nan')
 
         # ---- 姿态（原版 line 461-477）----
         if target_direction is None:
@@ -1734,6 +1843,50 @@ class GfoldLander:
                         (self.tilt_act - self._prev_tilt_act) / game_dt)
                 self._prev_tilt_act = self.tilt_act
                 # ============================================================
+                # 【2026-09-28 新增：姿态失守诊断（候选 1/2/3）】
+                #   详见 Logger.COLS 第 (10) 段的完整说明。这里只做采集。
+                # ============================================================
+                # --- 候选 1：把姿态权限与【当帧真实油门】对齐 ---
+                #   alpha_max 随油门变化（实测 5.4~81.9，差 15 倍），
+                #   而 PID 增益是常数。过去两列分开记录，无法判断
+                #   "权限低"到底是不是"油门低"造成的。
+                self.dbg_atq_thr = float(throttle)
+                self.dbg_atq_floor = (
+                    1.0 if abs(float(throttle) - self.thr_floor_last) < 1e-6
+                    else 0.0)
+                # --- 候选 2：两轴饱和（大倾角下俯仰/偏航可能不再解耦）---
+                _sx = 1.0 if abs(float(cp_)) > 0.999 else 0.0
+                _sz = 1.0 if abs(float(cy_)) > 0.999 else 0.0
+                self.dbg_pid_sat_x = _sx
+                self.dbg_pid_sat_z = _sz
+                if _sx > 0.5 and _sz > 0.5:
+                    self._sat_run = int(getattr(self, '_sat_run', 0)) + 1
+                else:
+                    self._sat_run = 0
+                self.dbg_pid_sat_run = float(self._sat_run)
+                # --- 候选 3：机头方位角 vs 指令方位角 ---
+                #   目标系 [1]=北, [2]=东（见 state() 注释）。
+                #   atan2(east, north) 给出方位角：0=正北, 90=正东。
+                #   只需水平分量，故先归一化水平投影。
+                def _az(vec_n, vec_e):
+                    if abs(vec_n) < 1e-9 and abs(vec_e) < 1e-9:
+                        return float('nan')
+                    return math.degrees(math.atan2(vec_e, vec_n))
+                _nn, _ne = float(nose_srf[1]), float(nose_srf[2])
+                _tn, _te = float(target_direction[1]), float(target_direction[2])
+                self.dbg_nose_n = _nn
+                self.dbg_nose_e = _ne
+                self.dbg_nose_az = _az(_nn, _ne)
+                self.dbg_tgt_az = _az(_tn, _te)
+                if (self.dbg_nose_az == self.dbg_nose_az
+                        and self.dbg_tgt_az == self.dbg_tgt_az):
+                    _d = self.dbg_nose_az - self.dbg_tgt_az
+                    # 折到 [-180,180]
+                    _d = ((_d + 180.0) % 360.0) - 180.0
+                    self.dbg_az_err = _d
+                else:
+                    self.dbg_az_err = float('nan')
+                # ============================================================
                 # 【2026-09-27 新增：记录真实姿态【向量】与姿态目标【向量】】
                 # ============================================================
                 # 【为什么必须记向量而不是只记角度】此前只有 tilt_act(标量)
@@ -1792,14 +1945,17 @@ class GfoldLander:
           会被误判成【执行器没跟上】。而 Vessel.thrust 是
           SpaceCenter.Engine.thrust 的实测求和，可信。
 
-        【实现】只读 thrust 与 max_thrust 两次轻量 RPC；
+        【实现】只读 thrust 与 available_thrust 两次轻量 RPC；
           异常时保留上一帧值（写 nan 会让日志出现空洞）。
         """
         try:
             _th = float(self.v.thrust)
-            _tmax = float(self.v.max_thrust)
+            _tmax = float(self.v.available_thrust)
             self.dbg_thrust_n = _th
             if _tmax > 1e-6:
+                # 【2026-09-28】thr_real = 实测推力 / 【真实可用推力】
+                #   分母用 available_thrust，与控制器的 a_cap 同口径。
+                #   这样 thr_real 应该≈ thr_cmd（而不是之前的 1.5 倍）。
                 self.dbg_thr_real = _th / _tmax
         except Exception:                            # noqa: BLE001
             pass
@@ -1865,6 +2021,17 @@ class GfoldLander:
             # ---- ⑨ 真实执行器（新增）----
             thrust_n=_f(getattr(self, 'dbg_thrust_n', None), 0),
             thr_real=_f(getattr(self, 'dbg_thr_real', None), 4),
+            # ---- (10) 姿态失守诊断 ----
+            atq_thr=_f(getattr(self, 'dbg_atq_thr', None), 4),
+            atq_floor=_f(getattr(self, 'dbg_atq_floor', None), 0),
+            pid_sat_x=_f(getattr(self, 'dbg_pid_sat_x', None), 0),
+            pid_sat_z=_f(getattr(self, 'dbg_pid_sat_z', None), 0),
+            pid_sat_run=_f(getattr(self, 'dbg_pid_sat_run', None), 0),
+            nose_n=_f(getattr(self, 'dbg_nose_n', None), 3),
+            nose_e=_f(getattr(self, 'dbg_nose_e', None), 3),
+            nose_az=_f(getattr(self, 'dbg_nose_az', None), 1),
+            tgt_az=_f(getattr(self, 'dbg_tgt_az', None), 1),
+            az_err=_f(getattr(self, 'dbg_az_err', None), 1),
             plan_alt=_f(self.dbg_plan_alt, 2),
             plan_vz=_f(self.dbg_plan_vz, 3),
             plan_vh=_f(self.dbg_plan_vh, 3),
@@ -2082,7 +2249,8 @@ class GfoldLander:
                 print(f"[vessel] 锁定 {d['name']!r} mass={d['mass']/1000:.1f} t "
                       f"thrust={d['thrust']/1e6:.2f} MN a_net={d['a_net']:.1f} m/s²")
                 self.log.note(f"vessel={d['name']} mass={d['mass']:.0f}kg "
-                              f"max_thrust={d['thrust']:.0f}N a_net={d['a_net']:.1f}")
+                              f"avail_thrust={d['thrust']:.0f}N "
+                              f"a_net={d['a_net']:.1f}")
                 self.log_vessel_table()
 
             alt, dist, vz, vh, vmag, mass, tp, tv = self.state()
@@ -2110,7 +2278,7 @@ class GfoldLander:
                 #   曾把它做成硬门（>0.95 就等），会把本可解算的状态挡在门外。
                 #   所以这里只打印 + 记日志，交给求解器做最终裁决。
                 h_gnd = max(1.0, alt - TARGET_ALT)
-                a_avail = self.v.max_thrust / max(1.0, mass)
+                a_avail = self.a_cap_real(mass)
                 a_need = math.hypot(vz * vz / (2 * h_gnd),
                                     vh * vh / (2 * max(1.0, dist)))
                 ratio = a_need / max(1e-6, a_avail)
@@ -2473,7 +2641,7 @@ class GfoldLander:
                     #        （即"至少留 HOLD_TAU 秒才把垂速消到 0"，
                     #          避免在 vz 很小时仍猛推）
                     #   两者取小 ⇒ vz 单调趋近 0 但绝不穿越。
-                    a_cap = self.v.max_thrust / max(1.0, mass)
+                    a_cap = self.a_cap_real(mass)
                     vmag_now = float(np.linalg.norm(vel))
                     if vmag_now > 1e-6:
                         # ① 瞄准速度反方向（参考仓库 simple 模式的核心）
@@ -2559,7 +2727,7 @@ class GfoldLander:
                     self.v.control.gear = True
             else:
                 # 原版 line 413-427：final 段
-                a_cap = self.v.max_thrust / max(1.0, mass)
+                a_cap = self.a_cap_real(mass)
                 max_acc = 1.0 * a_cap - G0
                 max_acc_low = 1.0 * FINAL_THROTTLE * a_cap - G0
                 est_h = error[0] - vel[0] ** 2 / (2 * max(1e-9, max_acc))
@@ -2855,7 +3023,10 @@ def list_vessels(conn):
         try:
             fl = v.flight(body.reference_frame)
             ms = v.mass
-            th = v.max_thrust
+            try:
+                th = float(v.available_thrust)
+            except Exception:                        # noqa: BLE001
+                th = float(v.max_thrust)
             a_net = (th / ms - 9.80665) if ms > 1 else float('-inf')
             rows.append(dict(v=v, name=v.name, type=v.type.name,
                              situation=v.situation.name, mass=ms, thrust=th,
