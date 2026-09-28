@@ -202,15 +202,63 @@ CONIC_TILT_DEG = 25.0
 #   ⇒ 限幅必须跟随【轨迹本身】，而不是跟随某个虚构的时序。
 
 
-# ---- 姿态 PID（**数值直接来自参考仓库 params.txt**）----
-#   ctrl_x_rot.kp = 5   ctrl_x_rot.kd = 2.5     (pitch)
-#   ctrl_z_rot.kp = 5   ctrl_z_rot.kd = 2.5     (yaw)
-#   ctrl_y_avel_kp = 2                          (roll，直接消除角速度)
-CTRL_X_ROT_KP = 5.0
+# ---- 姿态 PID ----
+#   ctrl_x_rot.kp/kd  (pitch)   ctrl_z_rot.kp/kd (yaw)
+#   ctrl_y_avel_kp    (roll，直接消除角速度)
+#   ctrl_x/z_avel_kd  (pitch/yaw 的【机身角速度阻尼】，本项目新增)
+#
+# ================================================================
+# 【2026-09-28 调参：KP 5.0 -> 2.0，并新增机身角速度阻尼】
+# ================================================================
+# 【参考仓库原值 Kp=5 / Kd=2.5，本载具不适用】
+#   参考仓库能这么用，是因为它的载具姿态权限充裕。本载具不行，
+#   实飞日志 gfold_log_20260928_211915.csv（带新诊断列）给出铁证：
+#
+#   ① 输出几乎一直在饱和：
+#        pid_sat_z（偏航轴）饱和 73/101 帧 = 72%
+#        pid_sat_x（俯仰轴）饱和 45/101 帧 = 45%
+#      饱和阈值 = 1/Kp 弧度 = 1/5 rad = 11.5 deg。而实测误差：
+#        |pid_err_z| 中位 29.2 deg、p90 55.0、最大 72.6
+#      ⇒ 【绝大多数时间都在打满舵】，P 项早就失去比例调节作用，
+#        退化成"bang-bang"（只会 +/-满舵），必然振荡。
+#
+#   ② 姿态权限却被油门下限压在最低档（同日志实测）：
+#        油门 ~0.2 时 alpha_max 均值 18.1 deg/s^2（82 帧）
+#        油门 >=0.5 时 alpha_max 均值 53.4 deg/s^2（9 帧）
+#        油门被下限钉住的帧：68/101
+#      ⇒ 满舵把角速度顶到 85.8 deg/s，而 18.1 deg/s^2 停住它需要
+#        86^2/(2*18.1) = 203 deg 行程，指令只有 25 deg ⇒ 物理上刹不住。
+#
+#   ③ 机理：Kp 太大 ⇒ 一有误差就饱和 ⇒ 角速度失控 ⇒ 权限刹不住
+#      ⇒ 过冲 ⇒ 反向更大误差 ⇒ 极限环（4 趟实飞形状一致）。
+#
+# 【本次取 Kp=2.0】：P 项在 28.6 deg 才饱和，而 |pid_err_z| 中位
+#   29.2 deg、p90 55.0 ⇒ 中位附近不再饱和，恢复比例特性；大误差时
+#   仍会饱和（这是对的：大误差就该全力转）。
+#
+# 【本次取 Kd=2.5 不变】：实测 |pid_px|/|pid_dx| = 0.92，D 项已经与
+#   P 项同量级、正常起作用（此前 game_prev_time 未推进时该比值是
+#   85:1，D 项形同虚设，那是另一个已修的 bug）。暂不动它。
+#
+# 【为什么另加机身角速度阻尼（ctrl_x/z_avel_kd）】
+#   现在的 D 项微分的是【误差信号】，不是【机身角速度】。参考仓库
+#   的滚转通道（ctrl_y_avel_kp）就是直接读角速度的 —— 俯仰/偏航
+#   没有，这是不对称的。
+#   本项目已有实测角速度 avel_local（见 apply()），无需新增 RPC。
+#   加入 -kd_rate*avel 后，转速一高就立刻产生反向力矩，
+#   不依赖"误差变化率"间接感知（后者在误差饱和时是常数，看不见转速）。
+#
+# 【取值 1.0 的依据】avel 最大 85.8 deg/s，换成 rad/s ~= 1.50。
+#   乘 1.0 得 1.50，与 clamp 上限 1.0 同量级，即"高速旋转时阻尼项
+#   自己就能打满舵"。太低（如 0.3）在 30 deg/s 时只有 0.16，压不住。
+CTRL_X_ROT_KP = 2.0
 CTRL_X_ROT_KD = 2.5
-CTRL_Z_ROT_KP = 5.0
+CTRL_Z_ROT_KP = 2.0
 CTRL_Z_ROT_KD = 2.5
 CTRL_Y_AVEL_KP = 2.0
+# 【新增】俯仰/偏航的机身角速度阻尼增益（rad/s -> 控制量）
+CTRL_X_AVEL_KD = 1.0
+CTRL_Z_AVEL_KD = 1.0
 
 # ================================================================
 # ---- 等待首解期间的减速保持（hold 段）----
@@ -519,6 +567,9 @@ class Logger:
             'pid_err_x', 'pid_err_z',
             'pid_px', 'pid_dx', 'pid_ix',
             'pid_out_x', 'pid_out_z', 'pid_out_r',
+            # 【2026-09-28 新增】机身角速度阻尼项（俯仰/偏航）。
+            #   与 pid_out_* 分开记，才能判断"输出是 P/D 给的还是阻尼给的"。
+            'pid_damp_x', 'pid_damp_z',
             'avel_p', 'avel_r', 'avel_y',
             # ---- ⑦ 参考轨迹索引诊断（2026-09-28 修 n_i 冻结）----
             #   idx_raw   : find_nearest_index 的原始投影（未加地板/单调）
@@ -702,6 +753,9 @@ class GfoldLander:
         self._sat_run = 0
         # gfold 段本帧的油门下限（比例），供 atq_floor 判断用
         self.thr_floor_last = float('nan')
+        # 【2026-09-28】俯仰/偏航的机身角速度阻尼项（落日志供验证符号与幅度）
+        self.dbg_pid_damp_x = float('nan')
+        self.dbg_pid_damp_z = float('nan')
         # 【2026-09-27 新增】参考轨迹采样点与真实跟踪误差（见 track() 赋值）。
         self.dbg_n_i = float('nan')
         self.dbg_plan_alt = float('nan')
@@ -1800,6 +1854,39 @@ class GfoldLander:
             cp_ = -_clamp(out_x, 1, -1)
             out_z = self.ctrl_z_rot.update(err_z, game_dt)
             cy_ = -_clamp(out_z, 1, -1)
+            # ============================================================
+            # 【2026-09-28 新增：俯仰/偏航的【机身角速度阻尼】】
+            # ------------------------------------------------------------
+            # 【为什么必须加】上面 PID 的 D 项微分的是【误差信号】，不是
+            #   【机身角速度】。当误差已经很大（实测 |pid_err_z| 中位
+            #   29.2 deg）、输出饱和时，误差变化率不再反映转速，
+            #   D 项看不见"载具正在以 85 deg/s 旋转"。
+            #   而角速度不清零，姿态就必然过冲、进入极限环。
+            #
+            # 【为什么滚转早就有】参考仓库的 control_roll 直接读
+            #   avel_local[1]（见 demo3_gfold.py:473）。俯仰/偏航没有，
+            #   这是不对称的 —— 本次补上。
+            #
+            # 【轴向索引的依据（已核实）】
+            #   · 滚转通道用 avel_local[1]，与 roll 轴对应；
+            #   · 参考仓库注释掉的 469/470 行把 pitch 对应 avel_local[0]、
+            #     yaw 对应 avel_local[2]（那两行把角速度误当 dt 传参，
+            #     本身是坏实验，但【索引对应关系】可作旁证）；
+            #   · 实测日志交叉验证：pid_out_x 饱和时 avel_p([0]) 变化，
+            #     pid_out_z 饱和时 avel_y([2]) 变化，avel_r([1]) 恒 0
+            #     （滚转无指令）。
+            #   ⇒ [0]=俯仰角速度, [1]=滚转角速度, [2]=偏航角速度。
+            #
+            # 【符号】与 control_pitch/yaw 的约定一致（都取负），
+            #   即"角速度为正时施加反向力矩"——这就是阻尼。
+            #   实际符号正确性由实飞日志的 pid_damp_* 列与姿态收敛性判定。
+            # ============================================================
+            _damp_x = float(avel_local[0]) * CTRL_X_AVEL_KD
+            _damp_z = float(avel_local[2]) * CTRL_Z_AVEL_KD
+            cp_ = _clamp(cp_ - _damp_x, 1, -1)
+            cy_ = _clamp(cy_ - _damp_z, 1, -1)
+            self.dbg_pid_damp_x = float(-_damp_x)
+            self.dbg_pid_damp_z = float(-_damp_z)
             cr_ = _clamp(float(avel_local[1]) * CTRL_Y_AVEL_KP, 1, -1)
             # 落日志：PID 输入(rad/deg) + 三项 + 最终控制量
             self.dbg_pid_err_x = math.degrees(err_x)
@@ -2060,6 +2147,8 @@ class GfoldLander:
             pid_out_x=_f(getattr(self, 'dbg_pid_out_x', None), 4),
             pid_out_z=_f(getattr(self, 'dbg_pid_out_z', None), 4),
             pid_out_r=_f(getattr(self, 'dbg_pid_out_r', None), 4),
+            pid_damp_x=_f(getattr(self, 'dbg_pid_damp_x', None), 4),
+            pid_damp_z=_f(getattr(self, 'dbg_pid_damp_z', None), 4),
             # 【写法】先取一次局部量再索引，避免 Pylance 对
             #   "getattr(..., default)[i]" 推断成 Any/Optional 而报错。
             avel_p=_av_c(0), avel_r=_av_c(1), avel_y=_av_c(2),
