@@ -16,7 +16,7 @@
 #       sample_index (273-290)       → sample_index()
 #       conic_clamp (292-314)        → conic_clamp()
 #       G-FOLD 跟随 (360-412)        → track()
-#       final 末段 (413-427)         → run() 里的 nav_mode=='final'
+#       final 末段 (413-427)         → 【已删除，见第三步 3(b)】
 #       PID 姿态 (461-477)           → PID 类 + apply()
 #       params.txt                   → 文件顶部常量（逐项标注"参考"）
 #
@@ -37,7 +37,8 @@
 # ======================= 控制策略（照抄参考仓库）=======================
 #   ① 交班瞬间：P3 估落地时刻 tf_m → P4 在 tf 上求燃料最优（~3.5 s）
 #   ② 之后：沿参考轨迹做 PD 跟随，索引由 find_nearest_index 给出
-#   ③ 进入目标圆柱区（final_radius/final_height）后切 final 段直接 PID
+#   ③ 【已删除】原先进入目标圆柱区后切 final 段直接 PID；
+#      第三步 3(b) 删掉了它，全程只走 track() 一条律（见 run() 的长注释）
 #   姿态：自写 PID 直接写 control.pitch/yaw/roll（参考仓库做法，不用 auto_pilot）
 #
 # ======================= 日志 =======================
@@ -238,6 +239,10 @@ REPLAN_DT = 1.0
 #   加速度指令限幅回物理可执行的锥内（参考仓库 line 389-390）。
 #   本项目取 25°（与参考 txt 一致），而不是我此前自己拍的 12°（那是 B1040-7
 #   终端段的 term_tilt，属于【另一个阶段】的量，不可混用）。
+# 【2026-09-29 第三步 3(b)】现在只作为 conic_clamp() 的【默认参数值】
+#   存在（tilt_deg=None 时的兜底）。track() 已改为传入解析锥角
+#   （见 _solver_cone_deg），所以【正常的 gfold 飞行路径不再用它】。
+#   旧 final 分支曾用它做固定 25° 限幅，那个分支已删除。
 CONIC_TILT_DEG = 25.0
 
 # ---- 推力锥限幅的锥角来源（2026-09-27 澄清：不是"时序收紧"）----
@@ -341,11 +346,24 @@ HOLD_TAU = 1.0        # 净竖直减速 <= |vz| / HOLD_TAU
 # 共采 TAKEOVER_SAMPLES 个有效样本，不符比例 >=60% 判为未接管。
 TAKEOVER_SAMPLES = 40
 
+# ============================================================================
+# 【2026-09-29 第三步 3(b)：以下 FINAL_* 常量【已无代码引用】】
+# ----------------------------------------------------------------------------
+#   final 分支（进入目标圆柱区后切"自杀点火律"）已被整体删除，
+#   理由与实测证据见 run() 里 gfold 段那一段长注释。这里保留常量定义
+#   与历史说明，因为：
+#     · 它们是【参考仓库 params.txt 的对应项】，删除会丢失这层对照关系
+#     · FINAL_THROTTLE_MIN 的长注释记录了"本载具姿态权限靠 gimbal、
+#       正比于油门"这一条仍然成立的重要结论（第三步的 3(a) 下限改动
+#       正是围绕它展开的）
+#   【注意】若将来重新启用 final 分支，这些值就是当时的取值；
+#     但请先读 run() 里的删除理由，那里有 frac ∝ 1/vz² 奇异的实测。
+# ============================================================================
 # ---- 最终降落段（**数值直接来自参考仓库 params.txt**）----
-FINAL_RADIUS = 20.0      # 触发区域半径 [m]
-FINAL_HEIGHT = 200.0     # 触发区域高度 [m]
-FINAL_THROTTLE = 0.8
-FINAL_KP = 1.0
+FINAL_RADIUS = 20.0      # 触发区域半径 [m]（已无引用）
+FINAL_HEIGHT = 200.0     # 触发区域高度 [m]（已无引用）
+FINAL_THROTTLE = 0.8     # （已无引用）
+FINAL_KP = 1.0           # （已无引用）
 # 【2026-09-28 本项目新增：final 段【油门下限】—— 参考仓库没有这个量】
 #   【为什么必须加】参考仓库的 final 油门下限沿用 throttle_limit_ctrl[0]=0.05，
 #   它假设载具在 final 段靠【RCS / 反作用轮】保持姿态（与主油门无关）。
@@ -878,7 +896,10 @@ class GfoldLander:
         # 【姿态目标的真实倾角】tilt_cmd 是节流向量 target_a 的倾角，
         #   而姿态追的是前瞻向量 target_a_ —— 两者不同，必须分开记。
         self.tilt_dir_cmd = 0.0
-        self.nav_mode = 'none'    # 参考仓库的三态: none / gfold / final
+        # 【2026-09-29 第三步 3(b)】参考仓库是三态 none/gfold/final；
+        #   本项目【删掉了 final】（理由见 run() 里 gfold 段的长注释），
+        #   实际只用 none / hold / gfold 三态。
+        self.nav_mode = 'none'    # none / hold / gfold（无 final）
 
         # ---- PID（参考 params.txt: ctrl_x_rot/ctrl_z_rot kp=5 kd=2.5）----
         self.ctrl_x_rot = PID()
@@ -1601,7 +1622,21 @@ class GfoldLander:
         # 【二次修正】再由固定 0.16 改为【相对悬停的比例】——固定值在
         #   质量掉到 149 t 以下时会超过悬停，下限自己把火箭往上推。
         #   详见文件头 GFOLD_THROTTLE_MARGIN 的长注释。
-        min_mag = self._gfold_floor(a_cap, self.v.mass)
+        # 【2026-09-29 第三步 3(a)】改用【条件下限】：
+        #   载具已落后于规划、或规划本帧要求向下加速时，把下限放开到 0。
+        #   依据见 _gfold_floor_effective 的完整实测（新日志 164243 显示
+        #   规划有 48% 的节点推力低于旧下限，导致 |a_cmd| 被钉在 9.41 m/s²）。
+        # 【口径必须正确（本改动第一版写错过）】
+        #   err_up 是【本机相对【规划点】的高度偏差】= error[0] - x_i[0]，
+        #   正 = 本机高于规划点（落后了）=> 需要下降得更快 => 放开下限。
+        #   【不能传 error[0]】那是【相对瞄准点】的高度，下降全程都是大正数
+        #   （实测交班点 650 m），若拿它当判据会【全程放开下限】，
+        #   等于把姿态权限彻底丢掉 —— 与改动目的相反。
+        min_mag = self._gfold_floor_effective(a_cap, self.v.mass,
+                                              float(u_i[0]),
+                                              float(error[0]) - float(x_i[0]))
+        # 供 apply() 写 atq_floor 诊断列（必须与本次限幅用的是同一个值）
+        self.min_mag_eff = float(min_mag)
         max_mag = 1.00 * a_cap
         # ============================================================
         # ---- 锥角：用【与求解器完全相同的那条锥曲线】----
@@ -1657,8 +1692,12 @@ class GfoldLander:
                       'gfold_codegen PCS_END_DEG_P3/P4 是否一致，'
                       '并重跑 tools/gen_codegen.ps1'
                       % PCS_END_DEG)
-        target_a = self.conic_clamp(target_a, min_mag, max_mag, tilt_now)
-        target_a_ = self.conic_clamp(target_a_, min_mag, max_mag, tilt_now)
+        # 【3(a)】把【条件下限】显式传进去 —— conic_clamp 默认会自己重算
+        #   一个无条件下限，那样 3(a) 会被静默推翻（见该函数的注释）。
+        target_a = self.conic_clamp(target_a, min_mag, max_mag, tilt_now,
+                                    min_mag_override=min_mag)
+        target_a_ = self.conic_clamp(target_a_, min_mag, max_mag, tilt_now,
+                                     min_mag_override=min_mag)
 
         # 【参考仓库 line 391-392 的降级分支】
         #   原版判据是 `if n_i < 0`（n_i 允许为负）。本实现把 n_i 夹到了
@@ -1931,6 +1970,72 @@ class GfoldLander:
         floor = min(GFOLD_THROTTLE_MIN, GFOLD_THROTTLE_MARGIN * _hover)
         return floor * a_cap
 
+    def _gfold_floor_effective(self, a_cap, mass, plan_a_up, err_up):
+        """【2026-09-29 第三步改动 3(a)】按"是否要下降"放开油门下限。
+
+        ====================================================================
+        【为什么必须改：实飞日志 gfold_log_20260929_164243 的铁证】
+        --------------------------------------------------------------------
+        该趟用的是新的 [80 m/s 包络] 规划（vdesc=80 全程生效）。离线用
+        【同一交班状态】复现那条规划，逐节点对比"规划要的推力"与
+        "控制器的油门下限"（m=157.1 t, a_cap=81.71 m/s²）：
+
+            node   plan |u|   floor_mag(9.41)   规划低于下限?
+             0       5.72        9.41             YES
+            12       5.75        9.41             YES
+            24       5.76        9.41             YES
+            36       7.81        9.41             YES
+            48      28.12        9.41              -
+            78      48.13        9.41              -
+            => 38/79 个节点（48%）规划要的推力【低于下限】
+
+        【机制】conic_clamp 先把竖直分量夹到 >= min_mag：
+            a_ver = max(a_ver_min, min(a_ver_max, a_ver))
+        当 |u| < floor_mag 时，"跟轨迹"这个意图会被下限直接推翻 ——
+        载具被迫提供【比规划更多】的推力，于是：
+          · 竖直方向被额外顶上去（下降比规划慢）
+          · 水平方向拿不到应有的份额
+          · 实测 |a_cmd| 恒被钉在 9.41（= floor_mag）长达 2.5 s
+            （日志帧 7..31，规划只要 5.7）
+
+        【旧注释为什么曾把下限当必需】它是为"姿态权限"加的：gimbal 力矩
+          正比于油门，油门太低则姿态转不动。但那个理由只在【需要大角度
+          转姿】时成立；巡航段规划本来就是接近竖直的小推力，此时下限
+          反而把姿态"锁"在竖直、阻止它去追水平修正。
+
+        【判据（本改动的核心）】只在【确实要往下走】时放开下限：
+            err_up = error[0] - x_i[0]
+                   = 本机相对【规划点】的高度偏差（正 = 本机高于规划点）
+            plan_a_up - G0
+                   = 规划本帧的净竖直加速度（推力竖直分量 - 重力）
+          若载具【已经落后于规划】(err_up > 0) 或【规划本身要求净向下加速】
+          (plan_a_up - G0 < 0)，则放开下限到 0，让 a_ver 由规划与 PD 决定。
+          否则（巡航/需要姿态权限）保留原下限。
+
+        【口径陷阱（第一版写错过，实测暴露）】err_up 必须是【相对规划点】，
+          不能传 error[0]（相对【瞄准点】的高度）—— 下降全程它都是大正数
+          （交班点 650 m），拿它当判据会【全程放开下限】，等于把姿态权限
+          彻底丢掉，与改动目的相反。
+
+        【为什么不直接删掉下限】它会退回"油门下限 0.05 < 悬停 => 近乎
+          自由落体、无姿态权限"那个老故障（见 GFOLD_THROTTLE_MIN 的长注释）。
+          保留"该有时有、该无时无"是两边都不牺牲的做法。
+
+        【参数】
+          a_cap     : 本帧可用加速度（= a_cap_real）
+          mass      : 本帧质量
+          plan_a_up : 规划在当前节点的竖直推力分量 u_i[0]
+          err_up    : 本机相对瞄准点的高度偏差 error[0]
+        【返回】下限对应的加速度幅值 [m/s²]（0 表示不设下限）
+        """
+        base = self._gfold_floor(a_cap, mass)
+        # 规划本帧的净竖直加速度（推力竖直分量 - 重力）
+        net_up = float(plan_a_up) - G0
+        # 载具偏高（落后于规划）或规划要求向下加速 => 放开下限
+        if float(err_up) > 0.0 or net_up < 0.0:
+            return 0.0
+        return base
+
     def _solver_cone_deg(self, index, N):
         """求解器那条【推力指向锥】在第 index 个节点处的半角 [deg]。
 
@@ -1957,7 +2062,8 @@ class GfoldLander:
         frac = max(0.0, min(1.0, frac))
         return float(PCS_START_DEG + (PCS_END_DEG - PCS_START_DEG) * frac)
 
-    def conic_clamp(self, target_a, min_mag, max_mag, tilt_deg=None):
+    def conic_clamp(self, target_a, min_mag, max_mag, tilt_deg=None,
+                    min_mag_override=None):
         """把推力加速度指令限幅到推力锥内。
 
         【逐行照抄参考仓库】dev/gfold/demo3_gfold.py 的 conic_clamp()
@@ -1990,10 +2096,26 @@ class GfoldLander:
         会除零（numpy 给 nan）。这里加了零向量保护，其余逐行一致。
         """
         a_cap = self.a_cap_real()
-        # 【2026-09-28 P0】与 track() 同步：由硬编码 0.05 改为下限常量。
-        #   两处必须一致，否则 track() 的限幅会被这里的下限二次改写。
-        #   【二次修正】同样改为相对悬停的比例，见 _gfold_floor()。
-        min_mag = self._gfold_floor(a_cap, self.v.mass)
+        # ================================================================
+        # 【2026-09-29 第三步 3(a) 修复：这里【必须尊重传入的 min_mag】】
+        # ----------------------------------------------------------------
+        # 【原来的 bug（本改动第一版暴露）】本函数签名收了 min_mag 参数，
+        #   却在函数体内【无视它】、用自己的 _gfold_floor() 重算一遍：
+        #       min_mag = self._gfold_floor(a_cap, self.v.mass)
+        #   于是 track() 里算好的【条件下限】（该放开时=0）被这里的
+        #   【无条件下限】二次改写 —— 3(a) 的改动完全失效。
+        #   这条注释的原话是"两处必须一致，否则 track() 的限幅会被这里
+        #   的下限二次改写"，说明作者当年已经意识到这个机制，
+        #   但当 3(a) 让两处【本来就该不同】时，这行就成了 bug。
+        #
+        # 【修法】优先用调用方显式给的 min_mag_override（track() 会传它的
+        #   条件下限）；没给时沿用旧的"自己算"的行为，保证 conic_clamp
+        #   的其它调用点（诊断脚本等）语义不变。
+        # ================================================================
+        if min_mag_override is not None:
+            min_mag = float(min_mag_override)
+        else:
+            min_mag = self._gfold_floor(a_cap, self.v.mass)
         max_mag = 1.0 * a_cap
         max_tilt = math.radians(CONIC_TILT_DEG if tilt_deg is None else tilt_deg)
         a_hor = float(np.linalg.norm(target_a[1:3]))
@@ -2057,8 +2179,12 @@ class GfoldLander:
         self.update_thrust_scale(throttle)
         # 【2026-09-28】记住本帧的 gfold 段油门下限（= 悬停的比例），
         #   供诊断列 atq_floor 判断"油门是否被下限钉住"。
+        # 【2026-09-29 第三步 3(a)】改用【实际生效】的下限（track() 里
+        #   按"是否要下降"算出的那个），否则诊断列会在下限被放开时
+        #   仍显示旧值，无法反映真实情况。
         try:
-            self.thr_floor_last = self._gfold_floor(a_cap, self.v.mass) / a_cap
+            self.thr_floor_last = float(
+                getattr(self, 'min_mag_eff', 0.0)) / max(1e-9, a_cap)
         except Exception:                            # noqa: BLE001
             self.thr_floor_last = float('nan')
 
@@ -3088,101 +3214,48 @@ class GfoldLander:
                         self.draw_target_marker()
                     continue
 
-            if self.nav_mode == 'gfold':
-                # 进入 final 段的判据（原版 line 409）
-                if (float(np.linalg.norm(error[1:3])) < FINAL_RADIUS
-                        and float(np.linalg.norm(error[0])) < FINAL_HEIGHT):
-                    print('[nav] 进入 final 段（目标圆柱区内）')
-                    self.log.note('nav_mode -> final')
-                    self.nav_mode = 'final'
-
-            if self.nav_mode == 'gfold':
-                # 原版 line 361-405
-                assert self.plan is not None      # hold 分支已保证
-                target_a, idx = self.track(self.plan, tp, tv, self.gfold_n_i)
-                target_direction = self.target_direction
-                plan_x = self.plan['x']
-                # 放起落架（原版 line 407-408）
-                if (plan_x.shape[1] - self.gfold_n_i) \
-                        * self.plan['tf'] / plan_x.shape[1] < 10:
-                    self.v.control.gear = True
-            else:
-                # 原版 line 413-427：final 段
-                a_cap = self.a_cap_real(mass)
-                max_acc = 1.0 * a_cap - G0
-                max_acc_low = 1.0 * FINAL_THROTTLE * a_cap - G0
-                est_h = error[0] - vel[0] ** 2 / (2 * max(1e-9, max_acc))
-                est_h_low = error[0] - vel[0] ** 2 / (2 * max(1e-9, max_acc_low))
-                denom = (est_h - est_h_low)
-                frac = (-est_h_low / denom * (1 + FINAL_KP)) if abs(denom) > 1e-9 else 0.0
-                # 【2026-09-28】下限由硬编码 0.05 改为 FINAL_THROTTLE_MIN(0.12)，
-                #   理由见该常量的长注释（本载具姿态权限靠 gimbal，正比于油门）。
-                #   上限仍为 1.0，本次不动。
-                thr = _clamp(_lerp(1.0 * FINAL_THROTTLE, 1.0, frac),
-                             1.0, FINAL_THROTTLE_MIN)
-                self.v.control.throttle = thr
-                self.thr_cmd = thr
-                error_hor = np.array([0.0, error[1], error[2]])
-                vel_hor = np.array([0.0, vel[1], vel[2]])
-                ctrl_hor = -error_hor * 0.03 - vel_hor * 0.06
-                td = ctrl_hor + np.array([1.0, 0.0, 0.0])
-                td = td / max(1e-9, float(np.linalg.norm(td)))
-                # ============================================================
-                # 【2026-09-27 修正：补回原版的锥限幅】
-                # ============================================================
-                # 【原版 demo3_gfold.py:427】
-                #     target_direction = conic_clamp(target_direction, 1, 1, max_tilt)
-                #   注意参数是 (1, 1, max_tilt)：min_mag=max_mag=1，即
-                #   【只做方向限幅、不改幅值】（此时 target_direction 已是单位向量）。
-                # 【我此前漏了这一行】于是 final 段可以命令一个超出 max_tilt 的
-                #   姿态 ⇒ 触地前姿态可能越界（本项目指标要求触地倾角 < 5°）。
-                #   ⇒ 补上。这里直接对单位向量做锥限幅：先把水平分量压到
-                #     a_ver*tan(max_tilt) 以内，再归一化。
-                # ============================================================
-                _t = math.radians(CONIC_TILT_DEG)
-                _v = float(td[0])
-                _h = float(np.linalg.norm(td[1:3]))
-                if _h > 1e-9:
-                    _cap = max(0.0, _v) * math.tan(_t)
-                    if _h > _cap:
-                        td = np.array([_v, td[1] * _cap / _h, td[2] * _cap / _h])
-                        td = td / max(1e-9, float(np.linalg.norm(td)))
-                # ============================================================
-                # 【2026-09-28 修复：final 段油门被 apply() 覆盖成 100%】
-                # ============================================================
-                # 【故障现象】log ..._193223 帧 44->45（进入 final 段那一帧）：
-                #     thr_cmd 0.050 -> 1.000，a_cmd_mag 2.76 -> 55.20
-                #   随后 vz 从 -74.1 一路升到 +11.76（【火箭往上飞】），
-                #   alt 从 186 m 回升到 187 m 后彻底失控。
-                #   【实飞不是能量不够】进入 final 时 189.5 m 高度、
-                #   满推力只需 56 m 就能停住 —— 高度是够的。
-                #
-                # 【根因】本段上面 2147-2156 算出的自杀点火油门 thr
-                #   先写进了 control.throttle / self.thr_cmd，
-                #   但紧接着 2187 调用 self.apply(target_a, ...)，
-                #   而 apply() 内部（1556-1561 行）会【重新用 |target_a| 算油门】：
-                #       throttle = |target_a| / a_cap
-                #   由于这里 target_a = td * a_cap（td 是单位向量），
-                #   ⇒ throttle 恒等于 a_cap/a_cap = 【1.0】
-                #   ⇒ 2147-2156 那一段算得再对也被【同帧覆盖】，成为死代码。
-                #   ⇒ final 段实际上一直在【满油门】，与自杀点火律无关。
-                #
-                # 【参考仓库为什么没这个问题】demo3_gfold.py 的 final 分支
-                #   （413-427 行）【只算 target_direction，不调用任何写油门的
-                #   函数】；真正写 throttle 的是【gfold 分支】的 405 行。
-                #   本移植把 apply() 加进了 final 分支，才把这个覆盖引进来。
-                #
-                # 【修法】让 target_a 的【幅值】等于本段算出的 thrust（而不是
-                #   a_cap），这样 apply() 复算的 |target_a|/a_cap 恰好还原 thr。
-                #   姿态方向仍用 td，语义与参考仓库一致。
-                target_a = td * thr * a_cap
-                target_direction = td
-                idx = self.gfold_n_i
-                if not self.args.dry_run:
-                    # final 段姿态仍用同一套 PID
-                    #   （油门已由上面的 target_a 幅值承载，apply() 会还原它）
-                    self.apply(target_a, target_direction, game_dt)
-
+            # ============================================================
+            # 【2026-09-29 第三步 3(b)：final 分支【整体删除】】
+            # ------------------------------------------------------------
+            # 【原来是什么】进入目标圆柱区（dist<FINAL_RADIUS=20 且
+            #   h<FINAL_HEIGHT=200）后切到另一套控制律：
+            #       · 自杀点火油门  thr = lerp(0.8, 1.0, frac)
+            #       · 水平 P/D      ctrl_hor = -e*0.03 - v*0.06
+            #       · 固定 25 度锥限幅
+            #
+            # 【为什么要删（三条实测证据）】
+            #   ① frac 在 vz->0 时【奇异】：
+            #        denom = est_h - est_h_low ∝ vz²
+            #      vz 从 -40 到 -0.5 时 denom 缩了 6400 倍，frac 从 -27.5
+            #      跑到 -2.3e5。用真实日志 003035 逐帧复算，油门在 5 帧
+            #      （0.8 s）内从 0.12 扫到 1.00 —— 这就是【末端突然大推力】。
+            #   ② 整个 gfold 段有【两套完全不同的律】在切换，交界处必然
+            #      阶跃。实测日志 003035 帧 53->54：thr_cmd 0.440 -> 0.120，
+            #      同时 gnc_phase 冻在 64.69 不再前进。
+            #   ③ 本次（第二步）给 P4 加了下降率包络后，参考轨迹【本身】
+            #      就是一条从巡航平滑收到触地的剖面，末端不再需要另一套
+            #      律来兜底 —— 让 PD 一直跟到地面即可。
+            #
+            # 【删除后的行为】全程只有一条律（track() 的 PD 跟随 +
+            #   条件下限 + 解析锥限幅），gfold 段天然连续。
+            # 【保留的常量】FINAL_* / CONIC_TILT_DEG 已无引用，但它们
+            #   在文件头仍有说明价值；见各自定义处的标注。
+            # ============================================================
+            # 原版 line 361-405（【唯一剩下的一条律】）
+            assert self.plan is not None      # hold 分支已保证
+            target_a, idx = self.track(self.plan, tp, tv, self.gfold_n_i)
+            target_direction = self.target_direction
+            plan_x = self.plan['x']
+            # 放起落架（原版 line 407-408）
+            if (plan_x.shape[1] - self.gfold_n_i) \
+                    * self.plan['tf'] / plan_x.shape[1] < 10:
+                self.v.control.gear = True
+            # 【2026-09-29 第三步 3(b)】final 段的自杀点火律【已整体删除】。
+            #   原实现的完整证据与理由见本节开头的长注释。摘要：
+            #     · frac ∝ 1/vz² 在触地前奇异 => 油门 5 帧内 0.12->1.00
+            #     · 两套律切换 => gnc_phase 冻结点 + 油门阶跃
+            #     · 第二步的下降率包络已让参考轨迹本身平滑收到触地
+            #   ⇒ 全程只保留 track() 一条律。
             if self.args.dry_run:
                 # dry-run 不写执行器（apply 里才更新 thr_cmd）
                 self.thr_cmd = 0.0
