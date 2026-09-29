@@ -616,7 +616,7 @@ class Logger:
             #      -> tgt_az   : 指令水平方位角 [deg]（同口径）。
             #      -> az_err   : 方位角之差 [-180,180]；|az_err| 大而
             #                    tilt 差小 = 候选 3 成立。
-            'atq_thr', 'atq_floor', 'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
+            'atq_thr', 'atq_floor', 't_scale', 'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
             'nose_n', 'nose_e', 'nose_az', 'tgt_az', 'az_err',
             'note']
 
@@ -752,6 +752,10 @@ class GfoldLander:
         self._sat_run = 0
         # gfold 段本帧的油门下限（比例），供 atq_floor 判断用
         self.thr_floor_last = float('nan')
+        # 【2026-09-29】推力自校准系数（见 _thrust_scale 的说明）
+        self._tscale = 1.0
+        self._tscale_buf = []          # 最近的有效比值样本（取中位数）
+        self._tscale_prev_cmd = float('nan')   # 用于"油门是否稳定"判据
         # 【2026-09-27 新增】参考轨迹采样点与真实跟踪误差（见 track() 赋值）。
         self.dbg_n_i = float('nan')
         self.dbg_plan_alt = float('nan')
@@ -1622,6 +1626,94 @@ class GfoldLander:
             self.dbg_h_misalign = float('nan')
         return target_a, self.gfold_n_i
 
+    def _thrust_scale(self):
+        """【自校准】kRPC 报的推力 与 实际推力 的比值。
+
+        【为什么需要】gfold_log_20260928_235713.csv 实测（数据极稳，t>=4.1）：
+            kRPC available_thrust 报 = 8.990 MN
+            由 thrust_n / thr_cmd 反推 = 12.71 MN
+            ratio = 1.414
+          最佳候选：9 x 936.508 kN(海平面) x 1.5(限幅) = 12.643 MN（差 0.5%）
+          ⇒ 本 kRPC 构建的 available_thrust 【既不含限幅、又取了真空值】。
+
+        【为什么不在线测】可以：真实可用推力 = Vessel.thrust / throttle。
+          但 throttle 很小或推力为 0 时该比值不可靠（实测有 0.000 的帧）。
+          故做法是：每次采样都把有效样本累积进指数平均，仅在
+          (throttle 足够大 且 推力>0) 时更新；未标定前先用 1.0（保守，
+          不会故意抬高低限）。
+
+        【为什么这样更稳】它自动适配：用户改限幅、TweakScale、不同大气/
+          不同载具，都会反映到 Vessel.thrust 上，无需改代码。
+
+        【返回值】>=1.0 的比值。恒 >=1 是因为 kRPC 只会低估（若实测
+          比 reported 小，说明我们的 throttle 记录不准，此时不采信）。
+        """
+        return float(getattr(self, '_tscale', 1.0))
+
+    def update_thrust_scale(self, thr_cmd):
+        """用一帧的 (throttle, Vessel.thrust) 更新自校准系数。
+
+        【调用点】apply() 里每帧调用一次。
+        【取中位数，不用指数平均】见下方"为什么"。
+
+        ============================================================
+        【2026-09-29 重写：第一版有三个缺陷，实飞 gfold_log_20260929_001024
+          把它们全部暴露出来】
+        ------------------------------------------------------------
+        【缺陷 1：推力【滞后】于油门指令，逐帧相除会得到垃圾比值】
+          发动机有惯性。实测同一帧对照：
+              t=0.48  thr_cmd=0.222  但 thrust=4.301 MN -> ratio 2.25（加速中）
+              t=0.69  thr_cmd=0.714  但 thrust=2.821 MN -> ratio 0.46（减速中）
+          这两个读数并非同一时刻的真实对应关系，只是相位差造成的假象。
+        【缺陷 2：采样门槛造成【自锁】】
+          旧门槛是 thr_cmd >= 0.12。而 t_scale 被污染偏高后，
+          下限 = 0.96*g0*m/(avail*ts) 被算得【偏低】-> thr_cmd 掉到 0.113
+          -> 0.113 < 0.12 -> 不再采样 -> t_scale 冻结在 1.839 长达 8.8 秒
+          （真实值约 1.47，即偏高 25%）。这个自锁让它无法自愈。
+        【缺陷 3：EMA 对离群值不稳健】
+          单个 2.25/2.50 的样本就能把 EMA 拉动 +0.15~+0.20。
+
+        【修法】
+          ① 只采信【油门稳定】的帧：与上一帧的 thr_cmd 变化 < 0.02。
+             这样发动机已进入稳态，thrust/cmd 才是真实对应关系。
+          ② 门槛降到 0.08（打破自锁）。
+          ③ 采样窗口收到 [1.0, 2.0]：物理上 kRPC 只会【低估】推力，
+             且实测真值在 1.41~1.53，故 2.0 以上必为相位假象。
+          ④ 用最近 N 个有效样本的【中位数】，而不是 EMA ——
+             中位数对离群值免疫，且允许后续样本纠正早期污染。
+        ============================================================
+        """
+        try:
+            _thr = float(self.v.thrust)
+            _cmd = float(thr_cmd)
+            # 【① 只在油门稳定时采样】与上一帧比较
+            _prev_cmd = float(getattr(self, '_tscale_prev_cmd', float('nan')))
+            self._tscale_prev_cmd = _cmd
+            if _prev_cmd == _prev_cmd and abs(_cmd - _prev_cmd) > 0.02:
+                return
+            # 【② 门槛 0.08】低到不会与下限自锁
+            if _cmd < 0.08 or _thr < 1.0e5:
+                return
+            _rep = float(self.v.available_thrust)
+            if _rep < 1e5:
+                return
+            _ratio = (_thr / max(1e-6, _cmd)) / _rep
+            # 【③ 物理窗口】只可能低估
+            if not (1.0 <= _ratio <= 2.0):
+                return
+            # 【④ 中位数】保留最近 20 个样本
+            _buf = getattr(self, '_tscale_buf', None)
+            if _buf is None:
+                _buf = []
+                self._tscale_buf = _buf
+            _buf.append(_ratio)
+            if len(_buf) > 20:
+                del _buf[0]
+            _s = sorted(_buf)
+            self._tscale = float(_s[len(_s) // 2])
+        except Exception:                            # noqa: BLE001
+            pass
+
     def a_cap_real(self, mass=None):
         """【真实可用推力加速度】= available_thrust / mass [m/s^2]。
 
@@ -1637,9 +1729,13 @@ class GfoldLander:
                 conditions into account
                 ⇒ 【含】150% 限幅
             · Vessel.max_thrust / available_thrust = 各引擎对应量之和
-          实测：Vessel.max_thrust = 9 x 1000kN = 8.99 MN（日志里就是这个）
-                 Vessel.available_thrust = 9 x 1000kN x 1.5 = 13.5 MN
-                 （用户在游戏内读到 13500 kN，与后者一致）
+          【实测结果（2026-09-29 修正此前的错误推断）】
+            Vessel.max_thrust       = 8.990 MN
+            Vessel.available_thrust = 8.990 MN   <- 与 max_thrust 相同！
+            而由 thrust_n / thr_cmd 反推的真实可用推力 = 12.71 MN
+              （最佳候选 9 x 936.508kN 海平面 x 1.5 限幅 = 12.643，差 0.5%）
+          即本 kRPC 构建下 available_thrust 【既没含限幅、又取了真空值】，
+          低估 1.414 倍（见 _thrust_scale 的完整证据与自校准做法）。
 
         【原来错在哪】全文件把 v.max_thrust 当 a_cap，于是：
           · 控制器：throttle = |target_a| / a_cap 被高估 1.5 倍
@@ -1649,10 +1745,9 @@ class GfoldLander:
           · 求解器：t_max 传的是 8.99e6，等于让求解器【按一台弱 50% 的
             火箭规划】⇒ 规划出更长的 tf、更大的油门 ⇒ 载具执行时冲过头。
 
-        【为什么用 available_thrust 更好】它同时含【当前限幅】与【当前大气
-          条件】，因此：
-            · 用户改限幅（100% / 150% / TweakScale）无需改代码
-            · 高空真空推力与地面海平面推力会自动区分
+        【为什么仍用 available_thrust】按官方定义它应含当前限幅与大气条件，
+          比 max_thrust 更接近真值。但【实测本构建不满足该定义】，故必须再乘
+          _thrust_scale() 在线自校准 —— 这样无论 kRPC 或载具怎么变都安全。
 
         【调用方式】不传参时用实时 body mass。传 mass 可复用已读到的值，
           避免多一次 RPC。
@@ -1667,6 +1762,20 @@ class GfoldLander:
                 print('[WARN] available_thrust 不可用，退回 max_thrust')
                 print('[WARN] 若载具用了推力限幅，油门会偏大 1/limiter 倍')
             _t = float(self.v.max_thrust)
+        # 【2026-09-29 关键修正：乘自校准系数】
+        #   实测（gfold_log_20260928_235713.csv，t>=4.1 数据极稳）：
+        #     kRPC 报 available_thrust = 8.990 MN
+        #     而 thrust_n/thr_cmd 反推的真实可用推力 = 12.71 MN
+        #     ratio = 1.414
+        #   候选比对：9 x 936.508kN(海平面) x 1.5(限幅) = 12.643 MN（差 0.5%）
+        #   ⇒ kRPC 的 available_thrust 在本构建下【既没算限幅、又用了真空值】，
+        #     低估了 1.414 倍。
+        #   后果（此前所有"被顶上去"的根因）：
+        #     · throttle = |a|/a_cap 被高估 1.414 倍
+        #     · 悬停点被算高 1.414 倍 ⇒ 下限 0.16 变成真实悬停的 1.36 倍
+        #       ⇒ 下限自己把火箭往上推（实测 a_up = +3.57 m/s^2 持续爬升）
+        #   这里乘上在线测得的系数，使两者同口径。
+        _t = _t * self._thrust_scale()
         return _t / _m
 
     def _gfold_floor(self, a_cap, mass):
@@ -1695,8 +1804,13 @@ class GfoldLander:
           调用方用的是加速度域（min_mag），故这里直接换算好。
         """
         _m = max(1.0, float(mass))
-        # 【2026-09-28】悬停点必须用【真实可用推力】，否则含限幅的载具会把下限算高
-        _hover = G0 * _m / max(1.0, float(self.v.available_thrust))
+        # 【2026-09-29】悬停点必须用【真实可用推力】。
+        #   注意 available_thrust 本身还低估 1.414 倍（实测），
+        #   故必须乘自校准系数 _thrust_scale()，否则下限会高于真实悬停
+        #   ⇒ 下限自己把火箭往上推（实测 a_up=+3.57 m/s^2，一路爬到 409 m
+        #   后 vz 转正、永不落地，导致 PID 根本无法被检验）。
+        _t_true = max(1.0, float(self.v.available_thrust)) * self._thrust_scale()
+        _hover = G0 * _m / _t_true
         floor = min(GFOLD_THROTTLE_MIN, GFOLD_THROTTLE_MARGIN * _hover)
         return floor * a_cap
 
@@ -1795,6 +1909,9 @@ class GfoldLander:
         throttle = _clamp(throttle, 1.0, 0.0)
         self.v.control.throttle = throttle
         self.thr_cmd = throttle
+        # 【2026-09-29】用本帧的 (throttle, Vessel.thrust) 更新推力自校准系数。
+        #   必须在 a_cap 被下一次使用前更新；这里紧跟写入之后最合适。
+        self.update_thrust_scale(throttle)
         # 【2026-09-28】记住本帧的 gfold 段油门下限（= 悬停的比例），
         #   供诊断列 atq_floor 判断"油门是否被下限钉住"。
         try:
@@ -2135,6 +2252,8 @@ class GfoldLander:
             # ---- (10) 姿态失守诊断 ----
             atq_thr=_f(getattr(self, 'dbg_atq_thr', None), 4),
             atq_floor=_f(getattr(self, 'dbg_atq_floor', None), 0),
+            # 【2026-09-29】推力自校准系数（应稳定在 1.41 附近）
+            t_scale=_f(getattr(self, '_tscale', None), 4),
             pid_sat_x=_f(getattr(self, 'dbg_pid_sat_x', None), 0),
             pid_sat_z=_f(getattr(self, 'dbg_pid_sat_z', None), 0),
             pid_sat_run=_f(getattr(self, 'dbg_pid_sat_run', None), 0),
