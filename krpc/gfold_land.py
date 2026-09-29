@@ -159,6 +159,49 @@ PCS_END_DEG = 5.0          # 【2026-09-29】30 -> 5：触地姿态竖直（见�
 V_MAX_SOLVER = 1200.0      # 参考 V_max=150（不适配本项目入场速度）
 N3 = 160                   # 参考 GFOLD_params.py
 N4 = 80                    # 参考 GFOLD_params.py
+
+# ============================================================================
+# 【2026-09-29 第二步改动 2：下降率包络（v_descent_max）】
+# ----------------------------------------------------------------------------
+# 【治什么症状】
+#   ① 末端突然大推力 —— 纯燃料最优解是 bang-bang：先几乎不推地自由下坠，
+#      最后 1~2 s 猛刹。实测（交班点 h=650）默认无包络时 peak|vz| = 93.5 m/s。
+#      上游离线闭环实测更极端：落点 0.21 m、倾角 0.12° 都很漂亮，
+#      但【触地 vz = -96.9 m/s】（坠毁）。
+#   ② 参考轨迹不可跟踪 —— 需要完美时序，任何偏差都变成撞地。
+#
+# 【怎么起作用】给求解器一条逐节点的下降率上限 cap[n]（作为 Parameter 传入）：
+#       x[3, n] >= -cap[n]
+#   得到的剖面是"匀速下滑 + 均匀减速"，峰值下降率被压下来，代价是稍微多耗油，
+#   以及【tf 变长】。实测（gate 686.8/d300/vz-70/vh60/m156.9t）：
+#       v_descent_max    tf     peak|vz|   落地质量
+#       None (HEAD)      9.5     93.5      148.2 t
+#       100              9.8     93.6      148.1 t
+#        90             10.5     87.7      147.8 t
+#        80             10.5     80.0      147.7 t
+#        70             --      infeasible（4/7 工况无解）
+#   ⇒ 取 80：是【8 个真实工况全部通过】的最小值，且把峰值下降率从 93.5
+#     压到 80.0 m/s（-14%），落地质量只少 0.5 t。
+#
+# 【必须同时作用于 P3】包络会拉长落地时间，而 tf4 = tf_m + 0.5，
+#   tf_m 由 P3 读出。若只给 P4 加包络，P4 会被要求用 9.5 s 飞完一条
+#   限速 80 的剖面 —— 距离上不够，实测直接 infeasible。
+#   （这一点与 no_climb / 末端锥角【相反】：那两条只能加在 P4 上。）
+#
+# 【取值必须与 codegen 模型一致吗】不需要 —— cap 是【运行时 Parameter】，
+#   生成的 .pyd 接受任意 cap 向量，改这个常量不需要重新生成 codegen。
+#   这正是本设计相对 gfold_terminal.py 的关键改进（那里 cap 写在模型里，
+#   每换一个初态都要重建模型）。
+#
+# 【怎么关】设为 None 即回到 HEAD 行为（不加该约束），便于 A/B 与回退。
+# ============================================================================
+V_DESCENT_MAX_ENABLE = 80.0
+# 末端窗口：最后这个比例的时间内把 cap 压向 V_DESCENT_TERM_VZ，
+#   避免"贴着地猛刹"。上游实测：不加窗口时"末次 |vz|>50"总出现在
+#   alt≈56 m、剩 ~3 s。
+V_DESCENT_TERM_WIN = 0.40
+V_DESCENT_TERM_VZ = 4.0
+
 # 参考 params.txt 的 start_altitude：低于该高度才允许规划/重解。
 #   【2026-09-27】设为交班门（GATE_ALT，现为 686.8 m）—— 它只是"允许重解"的
 #   附加条件，而现在默认已不重解（--replan-dt 0）；设为 GATE_ALT 保持语义一致。
@@ -632,6 +675,7 @@ class Logger:
             #      -> az_err   : 方位角之差 [-180,180]；|az_err| 大而
             #                    tilt 差小 = 候选 3 成立。
             'atq_thr', 'atq_floor', 't_scale', 'cone_mis', 'cone_bad',
+            'vdesc',
             'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
             'nose_n', 'nose_e', 'nose_az', 'tgt_az', 'az_err',
             'note']
@@ -1311,10 +1355,16 @@ class GfoldLander:
         # 【求解参数全部来自文件顶部常量区】逐项对应参考仓库 params.txt。
         #   throttle=(0.1, 0.8) 是【求解器】的节流界（参考同值）；
         #   控制器侧用的是 [0.05, 1.0]，两套并存是原仓库设计。
+        # 【第二步】t_max 必须用【真实可用推力】（同 a_cap_real 的口径）：
+        #   kRPC 在本构建下把 available_thrust 低估 1.414 倍（见 a_cap_real
+        #   的长注释）。求解器若按 8.99 MN 规划，会得到一条"需要 86.7 m/s²
+        #   才能跟"的轨迹，而载具只有 49 —— 表现为跟不上、掉高度。
+        #   下降率包络的 cap 里含 a_brk = t_max/m - g0，口径错则整条包络错。
+        _t_avail = max(1.0, float(self.v.available_thrust)) * self._thrust_scale()
         r = solve_p3p4_state(
             x0_state, mass,
             isp=ISP_DEFAULT,
-            t_max=self.v.available_thrust,
+            t_max=_t_avail,
             throttle=(0.1, 0.8),
             tf_guess=TF_GUESS,
             straight_fac=STRAIGHT_FAC,
@@ -1322,9 +1372,16 @@ class GfoldLander:
             pcs_deg=PCS_END_DEG,
             pcs_start_deg=PCS_START_DEG,
             v_max=V_MAX_SOLVER,
-            N3=N3, N4=N4, target_alt=TARGET_ALT)
+            N3=N3, N4=N4, target_alt=TARGET_ALT,
+            # 【第二步】下降率包络（见文件头 V_DESCENT_MAX_ENABLE 的长注释）
+            v_descent_max=V_DESCENT_MAX_ENABLE,
+            term_win=V_DESCENT_TERM_WIN,
+            term_vz=V_DESCENT_TERM_VZ)
         self.solve_ms = (time.time() - t0) * 1000.0
         self.gfold_status = r.get('status', 'err')
+        # 【第二步】记录本次规划用的下降率包络上限（供 vdesc 日志列）
+        self.dbg_vdesc = float(V_DESCENT_MAX_ENABLE) if V_DESCENT_MAX_ENABLE \
+            else float('nan')
         if r.get('status') != 'optimal':
             # 失败时打印"分轴能量需求"，供判断是能量不够还是约束太紧
             h_gnd = max(1.0, alt - TARGET_ALT)
@@ -2345,6 +2402,9 @@ class GfoldLander:
             cone_mis=_f(getattr(self, '_cone_mis', None), 2),
             # 累计违反帧数（>0 即表示模型与常量不一致，需要重跑 codegen）
             cone_bad=_f(getattr(self, '_cone_mismatch_n', None), 0),
+            # 【2026-09-29 第二步】本次规划用的下降率包络上限 [m/s]。
+            #   记录它是为了事后确认"包络到底有没有生效"——空 = 关闭。
+            vdesc=_f(getattr(self, 'dbg_vdesc', None), 1),
             pid_sat_x=_f(getattr(self, 'dbg_pid_sat_x', None), 0),
             pid_sat_z=_f(getattr(self, 'dbg_pid_sat_z', None), 0),
             pid_sat_run=_f(getattr(self, 'dbg_pid_sat_run', None), 0),

@@ -46,6 +46,162 @@ SOLVER_NAME = 'CLARABEL'
 
 
 # ============================================================================
+# 【2026-09-29 第二步：下降率包络（v_descent_max）】
+# ----------------------------------------------------------------------------
+# 【为什么需要（症状）】纯燃料最优的解是 bang-bang：
+#   先几乎不推地加速下坠，最后 1~2 s 猛刹。
+#   实测（交班点 h=650 m）默认（无包络）的 peak|vz| = 119.6 m/s：
+#       t=0.0 h=650 vz=-70 | t=2.4 h=469 vz=-86  | t=4.7 h=243 vz=-109
+#       t=5.5 h=155 vz=-117| t=6.3 h= 67 vz=-98  | t=7.1 h= 12 vz=-43
+#   这在数学上最优，但【物理上不可跟踪】——需要完美的时序，
+#   任何偏差都会变成撞地。上游离线闭环实测：落点 0.21 m、
+#   倾角 0.12° 都很漂亮，但【触地 vz = -96.9 m/s】（坠毁）。
+#
+# 【怎么做】给每个节点一个下降率上限 cap[n]，约束 x[3,n] >= -cap[n]。
+#   cap 作为【参数向量】传入（而非编译期固定），因为：
+#     · 对参数与变量都是【仿射】的 => DCP/DPP 安全
+#       （对比：gfold_terminal.py 把 cap 写成编译期常量，故
+#        它每次改包络都必须重建模型）
+#     · cap 依赖当前质量 / 初速 / 剩余高度，每次解算都不同
+#
+# 【形状很重要（上游踩过的两个坑，见 gfold_terminal.py:154-204）】
+#   坑① 写成"从 |vz0| 线性收到 0" => 全部 infeasible。
+#     它把【总下降量】限死在 ~1100 m（积分 cap 得 72·T/2），
+#     而实际要下降 650~5000 m。
+#   坑② 第二代写成 cap = sqrt(2·a_brk·h_rem) + 5 后再与初速取 min，
+#     在【带初速冲进来】的实飞交班点自相矛盾：
+#         |vz0| = 314 而 cap = 160 => 节点 0 同时要 vz == -314 与 vz >= -160
+#     修正：包络必须【从初速出发】并与初值自洽（cap0）。
+#   另：a_brk 必须用【扣重力后的真实可用减速】，不是 0.35 倍满推
+#     （后者把包络压得比初速还低，全程每个节点都违反）。
+#
+# 【对比：为什么做成参数而不是像 gfold_terminal 那样写死】
+#   gfold_terminal.py 把 cap 算在模型里（用 h、mass、vz 作常量），
+#   于是每个不同初态都要重建模型。而 codegen 路径的模型是
+#   【编译期生成、运行时复用】的，按初态重建就意味着每次都要编译（数十秒）。
+#   故必须把 cap 变成 Parameter。
+# ============================================================================
+# 【参数名】生成器与求解器共用同一个名字，避免两处漂移。
+VDESC_PARAM = 'vdesc_cap'
+# 【默认包络值】None = 不加包络（与 HEAD 行为一致，便于回退与 A/B）。
+#   【为什么不直接设成 80】默认关闭可以保证：
+#     · 未显式传参的调用方（诊断脚本等）行为与 HEAD 完全一致
+#     · 真要启用时是【显式的一次改动】，便于 A/B 与快速回退
+#   启用方式见 gfold_land.py 的 V_DESCENT_MAX_ENABLE。
+V_DESCENT_MAX = None
+# 【生成期自检用的包络】只用于 gfold_codegen.generate_one() 的 cvxpy 自查 ——
+#   它保证 vdesc 这条新约束【真的被求解器验证过】，而不是"默认关闭、
+#   从未执行"。取实测通过的工作点值 80 m/s。
+#   【为什么是 80】见 gfold_codegen.py 里 vdesc 约束处的实测表：
+#     70 会让巡航段 4/7 工况 infeasible；80 是【全部 7 个工况通过】的最小值。
+SELFCHECK_VDESC = 80.0
+# 【生成期自检用的状态】必须与 gfold_land.py 的 GATE_* 一致（真实工作点），
+#   理由见 gfold_codegen.generate_one() 里的长注释：
+#   旧状态 h=2963/vz=-180 需要 141 m/s 的平均下降率，与"限速 80"物理上
+#   不相容，会得到假 infeasible。
+SELFCHECK_H = 650.0        # 到目标点高度 = GATE_ALT(686.8) - TARGET_ALT(36.8)
+SELFCHECK_Y = -300.0       # 水平偏差（锥内）
+SELFCHECK_VZ = -70.0
+SELFCHECK_VH = 60.0
+SELFCHECK_MASS = 156.9e3
+# 【末端窗口】最后 term_win 比例时间内，把 cap 压向 term_vz。
+#   上游实测：无论 v_descent_max 取 160 还是 80，"末次 |vz|>50" 总出现在
+#   alt≈56 m、剩 ~3 s —— 即总是"贴着地猛刹"。加窗口后末段平滑收到 term_vz。
+TERM_WIN = 0.40
+TERM_VZ = 4.0
+
+
+def vdesc_cap_vector(N, h, vz, mass, t_max, tf, isp=315.0,
+                     v_descent_max=None, term_win=TERM_WIN, term_vz=TERM_VZ,
+                     verbose=False):
+    """构造逐节点的下降率上限向量 cap[n]  [m/s]，供 x[3,n] >= -cap[n]。
+
+    【两种用法】
+      · v_descent_max is None -> 返回 None（调用方不加该约束）
+        —— 这是 HEAD 行为，用于 A/B 与快速回退。
+      · 数值 -> 返回长度 N 的 ndarray。
+
+    【参数含义】
+      h     : 当前到目标点的高度 [m]
+      vz    : 当前垂速 [m/s]（下降为负）
+      mass  : 当前质量 [kg]
+      t_max : 可用推力 [N]（已含限幅与自校准）
+      tf    : 本次规划的总时间 [s]（dt = tf/N）
+
+    ================================================================
+    【为什么必须传 tf（第一版的缺陷）】
+    ----------------------------------------------------------------
+      第一版没有 tf，写成：
+          cap = min(vdm, env)
+          cap = max(cap, min(cap0, env + 5.0))
+      实测（h=650, vz=-70, m=156.9t, a_brk=47.5）得到的向量是
+      【前 48 个节点恒为 70】（= cap0），即【它根本没有限制任何东西】：
+          因为 env+5 在前段远大于 cap0，所以 min(cap0, env+5) = cap0
+          —— 那一项把整条曲线抬到了初速上。
+      而且它无法判断【这条包络到底能不能下到地面】：
+          下降距离 = sum(cap)·dt，而 dt = tf/N 需要 tf。
+      实测：vdm=40 时 sum(cap)·dt = 536.8 m < h=650 m
+          => P4 直接 infeasible。而这个失败在旧版里
+             「看不出原因」（只看到 infeasible）。
+
+    【当前形状（四道限制取交）】
+      ① 初速：cap 不低于 |vz0|（否则节点 0 自相矛盾）
+      ② 可用减速：|vz| 只能按 a_brk 逐步下降 =>
+          cap <= |vz0| + a_brk·t   对于加速段，但我们要限制的是
+          【下降率上限】，故取 cap <= |vz0| - a_brk·t 与下一条取大
+      ③ 自杀点火包络：cap <= sqrt(2·a_brk·h_rem) + margin
+      ④ 巡航速度：cap <= v_descent_max（用户期望的匀速下滑速度）
+      末端窗口：最后 term_win 比例内把 cap 压向 term_vz
+
+    【可行性保护（最关键）】
+      算完形状后检查 D = sum(cap)·dt。若 D < h，说明【tf 太短，
+      用这么低的速度完成不了这段下降】。此时给全程叠加一个
+      常数偏移 c = (h - D)/tf，使 sum(cap')·dt == h 恰好。
+      这保证：
+        · 约束在【距离意义上】恒可满足（不会因包络而 infeasible）
+        · tf 充足时 c=0，包络完全生效
+        · tf 不足时自动退化为“尽量平缓但仍能到达”
+    """
+    if v_descent_max is None:
+        return None
+    N = max(2, int(N))
+    tf = max(1e-3, float(tf))
+    dt = tf / N
+    a_brk = max(1.0, float(t_max) / max(1.0, float(mass)) - G0)
+    cap0 = abs(float(vz))
+    vdm = float(v_descent_max)
+    H = max(0.0, float(h))
+    caps = np.zeros(N)
+    for n in range(N):
+        t = n * dt
+        h_rem = max(0.0, H * (1.0 - n / (N - 1)))
+        # ③ 自杀点火包络（天然满足“还来得及刹住”）
+        env = float(np.sqrt(2.0 * a_brk * h_rem) + 5.0)
+        # ① 初速：在能按 a_brk 减速的前提下，允许从 |vz0| 开始下降
+        #      ramp = |vz0| - a_brk·t（下限）；下降率上限不能低于它
+        ramp = cap0 - a_brk * t
+        cap = min(vdm, env)
+        cap = max(cap, ramp)
+        if n == 0:
+            cap = max(cap, cap0)
+        # 末端窗口：平滑收到 term_vz
+        frac_end = n / max(1, N - 1)
+        if frac_end > (1.0 - term_win):
+            w = (frac_end - (1.0 - term_win)) / max(1e-6, term_win)
+            cap = min(cap, term_vz + (cap - term_vz) * max(0.0, 1.0 - w))
+        caps[n] = max(cap, 1.0)
+    # ---- 可行性保护：保证 sum(cap)·dt >= h ----
+    D = float(np.sum(caps)) * dt
+    if D < H:
+        c = (H - D) / tf
+        caps = caps + c
+        if verbose:
+            print('[vdesc] tf=%.1fs 太短（包络只能下降 %.0f m < %.0f m）'
+                  ' -> 全程叠加 +%.1f m/s' % (tf, D, H, c))
+    return caps
+
+
+# ============================================================================
 # 【C 代码生成求解器（cvxpygen）—— 加速路径】
 # ============================================================================
 # 【为什么需要】cvxpy 直接解在【实飞】要 3.6 s（KSP 抢占 CPU），
@@ -179,7 +335,8 @@ def _load_cgen(program, N):
     return mod
 
 
-def _solve_one_cgen(program, x0, mass, tf, N, pcs_deg=None, pcs_start_deg=None):
+def _solve_one_cgen(program, x0, mass, tf, N, pcs_deg=None, pcs_start_deg=None,
+                    vdesc=None):
     """用 C 代码生成求解器求解。成功返回与 _solve_one 同构的 dict。
 
     【tf 已参数化】生成的模型把 tf 作为 Parameter（验证过 DCP+DPP 均通过），
@@ -233,12 +390,24 @@ def _solve_one_cgen(program, x0, mass, tf, N, pcs_deg=None, pcs_start_deg=None):
         par = m.cpg_params()
         upd = m.cpg_updated()
         names = m.param_names
+        # 【第二步】下降率包络也是运行时参数（模型里已声明为 Parameter）。
+        #   vdesc is None -> 用一个大值，等价于"不加包络"（与 HEAD 一致）。
+        #   注意 P3 模型【声明了该参数但不施加约束】，arg 仍要赋值，
+        #   否则 param_names 里它有名字却没值 -> 下面直接 return None。
+        if vdesc is None:
+            _vd_list = [1.0e4] * int(N)
+        else:
+            _va = np.asarray(vdesc, float).reshape(-1)
+            _vd_list = [float(max(x, 1.0e-3)) for x in _va]
+            if len(_vd_list) != int(N):
+                return None
         valmap = {
             'x0': [float(v) for v in np.asarray(x0).flatten()],
             'm_wet_log': float(np.log(mass)),
             's_hi0': float(P_TMAX_DEFAULT * 0.8 / mass),
             's_lo0': float(P_TMAX_DEFAULT * 0.1 / mass),
             'tf': float(tf),
+            'vdesc_cap': _vd_list,
         }
         for nm in names:
             if nm not in valmap:
@@ -334,8 +503,15 @@ def _fail(status, tf=-1.0, **extra):
 
 def _solve_one(program, x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
                v_max, N, straight_fac, target_alt, pcs_start_deg=None,
-               verbose=False):
-    """对应原版 GFOLD_direct_exec.GFOLD_direct(N, pmark, packed_data)。"""
+               verbose=False, v_descent_max=None,
+               term_win=TERM_WIN, term_vz=TERM_VZ):
+    """对应原版 GFOLD_direct_exec.GFOLD_direct(N, pmark, packed_data)。
+
+    【第二步新增】v_descent_max / term_win / term_vz 控制【下降率包络】：
+      非 None 时逐节点加 x[3,n] >= -cap[n]，cap 由 vdesc_cap_vector() 给出。
+      详见 vdesc_cap_vector 的文档字符串（含上游两个坑的完整记录）。
+      None（默认）= 不加该约束，与 HEAD 行为一致（便于 A/B 与回退）。
+    """
     alpha = 1.0 / G0 / isp
     alpha_dt_par = _pack(x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
                          v_max, N, straight_fac, alpha)
@@ -348,6 +524,11 @@ def _solve_one(program, x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
     p_cs_cos = alpha_dt_par['pcs_cos']
     m_wet_log = np.log(mass)
     g = np.array([-G0, 0.0, 0.0])
+    # ---- 第二步：算好逐节点下降率上限（None 表示不加该约束）----
+    _vdesc = vdesc_cap_vector(N, float(x0[0]), float(x0[3]), mass, t_max, tf,
+                              isp=isp, v_descent_max=v_descent_max,
+                              term_win=term_win, term_vz=term_vz,
+                              verbose=verbose)
 
     # 高度基准：本项目 x0[0] 已含 target_alt（见 solve_p3p4 的换算）
     x = cp.Variable((6, N), name='var_x')
@@ -483,6 +664,9 @@ def _solve_one(program, x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
         # ================================================================
         if program == 4:
             con += [x[3, n] <= 0]
+        # ---- 第二步：下降率包络（参数向量，仿射约束，DCP/DPP 安全）----
+        if _vdesc is not None:
+            con += [x[3, n] >= -float(_vdesc[n])]
 
         if n > 0:
             z0 = z0_term_log[0, n]
@@ -658,21 +842,38 @@ def _solve_p3p4_impl(x0, mass, isp=315.0, t_max=8.99e6,
                      throttle=(0.1, 0.8), tf_guess=40.0, straight_fac=5.0,
                      gs_deg=30.0, pcs_deg=30.0, pcs_start_deg=85.0,
                      v_max=1200.0, N3=160, N4=80, target_alt=36.8,
-                     verbose=False):
-    """P3 → tf_m → P4 的公共实现（x0 已就绪，三维带符号）。"""
+                     verbose=False, v_descent_max=None,
+                     term_win=TERM_WIN, term_vz=TERM_VZ):
+    """P3 → tf_m → P4 的公共实现（x0 已就绪，三维带符号）。
+
+    【第二步新增】v_descent_max / term_win / term_vz：
+      下降率包络，【只施加在 P4 上】（真正要飞的那条轨迹）。
+      理由与 no_climb、末端锥角相同：P3 的轨迹被丢弃，只用来估 tf_m，
+      而 tf_m 是 tf4 的输入 —— 改变 P3 的轨迹形状就会改变 tf_m，
+      进而改变 P4 的规划长度。本次保持 P3 与 HEAD 完全一致。
+      详见 vdesc_cap_vector 的文档字符串。
+    """
     import time as _t
     t0 = _t.time()
     # ---- P3：同样优先走 C 代码生成 ----
     #   P3 的 N3=160（比 P4 大一倍），cvxpy 解要 1.5~2.8 s，是现在的主要瓶颈。
     #   实测 tf_m 对 N3 敏感（N3=40 会退化到 38 s），故【不降 N3】，
     #   改为生成 N3=160 的 C 求解器。
+    # 【第二步】P3 也要带包络 —— 它决定 tf_m，进而决定 tf4。
+    #   详见 gfold_codegen.py 里 vdesc 约束处的实测表。
+    _vdesc3 = vdesc_cap_vector(N3, float(x0[0]), float(x0[3]), mass, t_max,
+                               tf_guess, isp=isp, v_descent_max=v_descent_max,
+                               term_win=term_win, term_vz=term_vz,
+                               verbose=verbose)
     r3 = _solve_one_cgen(3, np.asarray(x0, float), mass, tf_guess, N3,
-                         pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg)
+                         pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg,
+                         vdesc=_vdesc3)
     if r3 is None:
         r3 = _solve_one(3, np.asarray(x0, float), mass, isp, t_max, throttle,
                         tf_guess, gs_deg, pcs_deg, v_max, N3, straight_fac,
                         target_alt, pcs_start_deg=pcs_start_deg,
-                        verbose=verbose)
+                        verbose=verbose, v_descent_max=v_descent_max,
+                        term_win=term_win, term_vz=term_vz)
         r3['engine'] = 'cvxpy'
     if r3['status'] != 'optimal':
         return _fail(f'p3 {r3["status"]}', tf_guess, stage='p3')
@@ -689,12 +890,20 @@ def _solve_p3p4_impl(x0, mass, isp=315.0, t_max=8.99e6,
     #   【为什么只对 P4 走这条】P4 输出最终轨迹，是耗时大头；
     #   而生成版把 tf 固化在模型里（TF_GEN=21.0），只有本次 tf4 接近时可用。
     #   P3 只用来估 tf_m，成本较低且 tf 可变，保持 cvxpy。
+    # 【第二步】把下降率包络向量算好，两条路径共用同一份（保证一致）
+    _vdesc4 = vdesc_cap_vector(N4, float(x0[0]), float(x0[3]), mass, t_max, tf4,
+                               isp=isp, v_descent_max=v_descent_max,
+                               term_win=term_win, term_vz=term_vz,
+                               verbose=verbose)
     r4 = _solve_one_cgen(4, np.asarray(x0, float), mass, tf4, N4,
-                         pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg)
+                         pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg,
+                         vdesc=_vdesc4)
     if r4 is None:
         r4 = _solve_one(4, np.asarray(x0, float), mass, isp, t_max, throttle,
                         tf4, gs_deg, pcs_deg, v_max, N4, straight_fac, target_alt,
-                        pcs_start_deg=pcs_start_deg, verbose=verbose)
+                        pcs_start_deg=pcs_start_deg, verbose=verbose,
+                        v_descent_max=v_descent_max, term_win=term_win,
+                        term_vz=term_vz)
         r4['engine'] = 'cvxpy'
     if r4['status'] != 'optimal':
         return _fail(f'p4 {r4["status"]}', tf4, stage='p4', tf_m=tf_m)

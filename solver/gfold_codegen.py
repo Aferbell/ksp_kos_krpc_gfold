@@ -37,7 +37,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 # 本文件的上一级（dev/gfold/solver）就是 gfold_p3p4.py 所在处
 sys.path.insert(0, _HERE)
 
-from gfold_p3p4 import G0                      # noqa: E402 复用同一常量
+from gfold_p3p4 import (G0, vdesc_cap_vector,          # noqa: E402
+                        V_DESCENT_MAX, SELFCHECK_VDESC,
+                        SELFCHECK_H, SELFCHECK_Y, SELFCHECK_VZ,
+                        SELFCHECK_VH, SELFCHECK_MASS)
 
 # ---- 生成时固化的模型参数（与 gfold_p3p4 的默认保持一致）----
 # 【N 必须与求解侧一致】生成的 C 模型把节点数【编译期固化】：
@@ -142,6 +145,30 @@ def build(program, N=None, tf=TF_GEN):
     #   参数不能出现在分母（`r2/m_wet` 破坏 DPP），故预乘成两个标量 Parameter。
     s_hi0 = cp.Parameter(nonneg=True, name='s_hi0')
     s_lo0 = cp.Parameter(nonneg=True, name='s_lo0')
+    # ========================================================================
+    # 【2026-09-29 第二步：下降率包络参数向量】
+    # ------------------------------------------------------------------------
+    #   cap[n] = 第 n 个节点允许的最大下降率 [m/s]，约束 x[3,n] >= -vdesc[n]。
+    #   形状 (N,)，nonneg。
+    #
+    #   【为什么做成 Parameter 而不是编译期常数】
+    #     cap 依赖【当前质量 / 初速 / 剩余高度】，每个交接点都不同。若写死，
+    #     每个不同初态都要重建并【重新编译】C 模型（实测数十秒），
+    #     而 codegen 路径存在的全部意义就是"生成一次、运行时复用"。
+    #     对比 gfold_terminal.py：它把 cap 算进模型常数里，所以每个初态
+    #     都得重新建模 —— 那正是它无法直接接进本流程的原因之一。
+    #
+    #   【DCP/DPP 安全性】对固定的 n，约束是 "变量 >= -参数常数"，
+    #     对参数与变量都是【仿射】的，不破坏 DCP/DPP。
+    #     （注意与 gfold_p3p4.py 的 z0i/z0l 那类"参数当二次系数"区分开：
+    #      那一类在 cvxpy 1.9.3 下 non-DCP，必须用 numpy 常数。）
+    #   【向后兼容】Parameter 有默认值 0 => 不加包络时等价于 x[3,n] >= 0，
+    #     即"不许爬升"。这与 P4 已有的 no_climb 约束一致，不引入矛盾。
+    #     但我们仍然【只在 program==4 且调用方给了包络时】才用显式值，
+    #     并把默认值设成一个大数以免误伤（见 set_params）。
+    # ========================================================================
+    vdesc = cp.Parameter(N, nonneg=True, name='vdesc_cap')
+    vdesc.value = np.full(N, 1.0e4)        # 默认 = 实质上不加限制
     # ========================================================================
     # 【关键改进：tf 也是 Parameter ⇒ 一份生成模型覆盖任意 tf】
     # ========================================================================
@@ -255,6 +282,26 @@ def build(program, N=None, tf=TF_GEN):
         # ================================================================
         if program == 4:
             con += [x[3, n] <= 0]
+        # ---- 第二步：下降率包络（参数向量，仿射约束）----
+        #   【P3 和 P4 都要加 —— 这一点与 no_climb/锥角相反，有实测依据】
+        #     包络的作用是"把 bang-bang 变成可跟踪的匀速下滑"，它会
+        #     自然地【拉长落地时间】。而 tf4 = tf_m + 0.5，tf_m 由 P3 读出。
+        #     若 P3 不带包络，tf_m 仍是 bang-bang 的 9.0 s，而 P4 被要求
+        #     用 9.5 s 飞完一条"限速 80 m/s"的剖面 —— 距离上就不够，
+        #     实测 P4 直接 infeasible（vdm<=80 全挂）。
+        #     让 P3 也带包络后，P3 自己就会解出更长的 tf_m（9.0 -> 10.5），
+        #     P4 随之可行。实测（forced cvxpy，h=650 vz=-70 vh=60 m=156.9t）：
+        #         vdm   twin   tf_m   tf4   peak|vz|  end_tilt
+        #         None  --      9.0    9.5    93.4      5.00
+        #         100   0.40    9.2    9.8    93.6      5.00
+        #          80   0.40   10.0   10.5    80.0      4.97
+        #          70   0.25   10.8   11.2    70.0      5.00
+        #          60   --    P3 infeasible（650 m 用 60 m/s 下不去）
+        #   ⇒ 包络是"两个模型都要改"的约束；而 no_climb 与末端锥角是
+        #     "只能改 P4"的约束。区别在于：包络是【剖面形状】，需要
+        #     P3/P4 一致；那两条是【末端/畸形解】，P3 用不到。
+        if n < N - 1:
+            con += [x[3, n] >= -vdesc[n]]
         # ================================================================
         # 推力上下限（对数凸化）——【必须保留 if n > 0 的守卫】
         #   【2026-09-29 事故记录】本次改动曾在整理注释时把 `if n > 0:`
@@ -294,20 +341,26 @@ def build(program, N=None, tf=TF_GEN):
     #   报 reportArgumentType。这里显式转型（运行期无影响）。
     prob = cp.Problem(cp.Minimize(expr),
                       list(con))                       # type: ignore[arg-type]
-    return prob, x0, m_wet_log, s_hi0, s_lo0, tf_p
+    return prob, x0, m_wet_log, s_hi0, s_lo0, tf_p, vdesc
 
 
-def set_params(prob_params, x0_val, mass_val, tf_val=TF_GEN):
-    """设好运行时参数：x0 / log(m) / node0 推力上下界 / tf。
+def set_params(prob_params, x0_val, mass_val, tf_val=TF_GEN, vdesc_val=None):
+    """设好运行时参数：x0 / log(m) / node0 推力上下界 / tf / 下降率包络。
 
     tf 现在也是参数，所以【同一份生成模型可服务任意 tf】。
+    vdesc_val 为 None 时用一个很大值（1e4），等价于"不加包络"。
     """
-    x0p, mwl, s_hi, s_lo, tfp = prob_params
+    x0p, mwl, s_hi, s_lo, tfp, vdp = prob_params
     x0p.value = np.asarray(x0_val, float)
     mwl.value = float(np.log(mass_val))            # 预先算 log，保证 DPP
     s_hi.value = T_MAX * THROTTLE[1] / float(mass_val)
     s_lo.value = T_MAX * THROTTLE[0] / float(mass_val)
     tfp.value = float(tf_val)
+    if vdesc_val is None:
+        vdp.value = np.full(vdp.shape, 1.0e4)
+    else:
+        v = np.asarray(vdesc_val, float).reshape(-1)
+        vdp.value = np.maximum(v, 1.0e-3)
 
 
 def fix_generated_import(code_dir, pkg_name):
@@ -425,18 +478,44 @@ def generate_one(program, out_dir):
     print('=' * 70)
     print('生成 P%d  ->  %s' % (program, out_dir))
     print('=' * 70)
-    prob, x0, m_wet_log, s_hi0, s_lo0, tf_p = build(program)
+    prob, x0, m_wet_log, s_hi0, s_lo0, tf_p, vdesc = build(program)
     print('  变量 %d / 参数 %d / 约束 %d'
           % (sum(v.size for v in prob.variables()),
              sum(p.size for p in prob.parameters()),
              len(prob.constraints)))
 
-    # 先用 cvxpy 自查一次（确认模型可行），再生成
-    set_params((x0, m_wet_log, s_hi0, s_lo0, tf_p),
-               np.array([3000 - TARGET_ALT, -800.0, 0.0, -180.0, 120.0, 0.0]),
-               MASS_GEN)
+    # 先用 cvxpy 自查一次（确认模型可行），再生成。
+    #
+    # ====================================================================
+    # 【第二步：自查状态必须换成"真实交班点"】
+    # --------------------------------------------------------------------
+    #   原自查状态是 [3000-alt, -800, 0, -180, 120, 0]（h=2963, vz=-180）。
+    #   它在【无包络】下可行（自由落体后猛刹），但【加了 80 m/s 包络】后
+    #   必然 infeasible —— 实测：
+    #       需要的平均下降率 = h/tf = 2963/21 = 141.1 m/s
+    #       而包络限速 80 m/s 时 sum(cap)·dt = 1354 m < 2963 m
+    #   ⇒ 这不是模型错误，而是【那个状态与"限速 80"在物理上不相容】。
+    #   而且该状态在当前交班门（GATE_ALT=686.8 m）下根本不会出现。
+    #   ⇒ 自查改用【真实交班点】：h=650 dist=300 vz=-70 vh=60，
+    #     与 gfold_land.py 的 GATE_* 一致，且实测 80 m/s 包络可行。
+    #
+    #   【为什么必须带包络自查】V_DESCENT_MAX 默认是 None（不启用）。
+    #     若自查也照搬 None，就会出现"自查通过，但 vdesc 这条新约束
+    #     从未真正被求解器验证过"——这正是本项目反复吃亏的静默失败。
+    # ====================================================================
+    _N = N_P3 if program == 3 else N_P4
+    _m = SELFCHECK_MASS
+    _x0v = np.array([SELFCHECK_H, SELFCHECK_Y, 0.0,
+                     SELFCHECK_VZ, SELFCHECK_VH, 0.0])
+    _vdm = V_DESCENT_MAX if V_DESCENT_MAX is not None else SELFCHECK_VDESC
+    _vd = vdesc_cap_vector(_N, float(_x0v[0]), float(_x0v[3]), _m, T_MAX,
+                           tf=TF_GEN, isp=ISP, v_descent_max=_vdm)
+    set_params((x0, m_wet_log, s_hi0, s_lo0, tf_p, vdesc), _x0v, _m,
+               vdesc_val=_vd)
     prob.solve(solver=cp.CLARABEL)
-    print('  cvxpy 自查: %s' % prob.status)
+    print('  cvxpy 自查: %s  (包络: %s)'
+          % (prob.status, 'off' if _vd is None else 'vdesc=%.0f max=%.0f m/s'
+             % (_vdm, _vd.max())))
     if prob.status != 'optimal':
         print('  !! 模型不可行，先查模型再生成')
         return False
