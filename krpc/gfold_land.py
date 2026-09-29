@@ -139,8 +139,23 @@ ISP_DEFAULT = 315.0        # 比冲 [s]
 TF_GUESS = 40.0            # 参考 tf=20；本项目需更大（见 gfold_p3p4 文档）
 STRAIGHT_FAC = 5.0         # 参考同值
 GS_DEG = 30.0              # 参考 y_gs=30
+# ============================================================================
+# 【2026-09-29 第一步改动 1a/1d：末端锥角 30 -> 5】
+# ----------------------------------------------------------------------------
+# 【为什么】本项目指标要求触地倾角 < 5°。锥角是【天花板】：
+#   实测（交班点 alt=686.8 dist=300 vz=-70 vh=60 m=156.9 t）
+#       cvxpy 路径 pcs_deg=10 -> 末端倾角 9.50°
+#       cvxpy 路径 pcs_deg= 5 -> 末端倾角 5.00°
+#   即自然最优解停在 9.5°，【必须把锥压到 9.5 以下】才能逼出竖直。
+# 【代价】tf 与落地质量完全不变（9.5 s / 148.2 t，两者逐位相同）。
+#
+# 【必须与 codegen 模型同步】codegen 路径把锥角【编译期固化】：
+#   真正生效的是 gfold_codegen.PCS_END_DEG（已同步改为 5.0），
+#   这里的值只用于【控制器侧的锥限幅】（见 _solver_cone_deg）。
+#   若两处不一致，_solve_one_cgen 会打印一行醒目告警（1d）。
+# ============================================================================
 PCS_START_DEG = 85.0       # 本项目补充（参考用固定 p_cs；见坑①）
-PCS_END_DEG = 30.0         # 参考 p_cs = max_tilt*0.85 ≈ 21；本项目 30
+PCS_END_DEG = 5.0          # 【2026-09-29】30 -> 5：触地姿态竖直（见上）
 V_MAX_SOLVER = 1200.0      # 参考 V_max=150（不适配本项目入场速度）
 N3 = 160                   # 参考 GFOLD_params.py
 N4 = 80                    # 参考 GFOLD_params.py
@@ -616,7 +631,8 @@ class Logger:
             #      -> tgt_az   : 指令水平方位角 [deg]（同口径）。
             #      -> az_err   : 方位角之差 [-180,180]；|az_err| 大而
             #                    tilt 差小 = 候选 3 成立。
-            'atq_thr', 'atq_floor', 't_scale', 'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
+            'atq_thr', 'atq_floor', 't_scale', 'cone_mis', 'cone_bad',
+            'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
             'nose_n', 'nose_e', 'nose_az', 'tgt_az', 'az_err',
             'note']
 
@@ -1530,16 +1546,60 @@ class GfoldLander:
         #   详见文件头 GFOLD_THROTTLE_MARGIN 的长注释。
         min_mag = self._gfold_floor(a_cap, self.v.mass)
         max_mag = 1.00 * a_cap
-        # ---- 锥角：跟随【参考轨迹自己的倾角】----
-        #   参考仓库用固定 25° 锥，因为它的轨迹由【同一个 25° 锥】解出来，
-        #   轨迹倾角天然 <= 25°，固定锥与轨迹自洽。本项目为了让大横速入场
-        #   可行，求解器用了 pcs_start=85°→pcs_end=30° 的【时变】锥，
-        #   于是轨迹倾角也时变 ⇒ 限幅必须用【与求解器同一条锥曲线】，
-        #   否则就是自相矛盾。这里直接取参考轨迹在当前节点 u_i 的倾角。
+        # ============================================================
+        # ---- 锥角：用【与求解器完全相同的那条锥曲线】----
+        # ============================================================
+        # 【参考仓库的做法】固定 25° 锥。它成立是因为它的轨迹由
+        #   【同一个 25° 锥】解出来 —— 轨迹倾角天然 <= 25°，两者自洽。
+        #
+        # 【本项目的错误（2026-09-29 第一步改动 1c 修正）】
+        #   求解器用的是 pcs_start=85° -> pcs_end 的【时变】锥，而控制器
+        #   这里写的是：
+        #       max(tilt_traj + 8.0, CONIC_TILT_DEG)      # CONIC_TILT_DEG=25
+        #   那个 25° 是【地板】—— 它让锥角【永不小于 25°】，与求解器的
+        #   末端锥（本次已收到 5°）直接矛盾，于是"末端竖直"永远做不到。
+        #
+        #   【实飞日志铁证】三趟尾部 tilt_cmd >= 24.9 的帧占比与触地倾角：
+        #       gfold_log_20260929_002817  96%   tilt_act=25.96
+        #       gfold_log_20260929_003035  21%   tilt_act=27.75
+        #       gfold_log_20260929_003233  11%   tilt_act=17.11
+        #   而生产参考轨迹在末段的倾角只有 9.5~15.9°（h=200..20 m），
+        #   即【天花板比参考高 10~15°，指令却一直贴在天花板上】。
+        #
+        # 【现在】解析地复现求解器的那条曲线：
+        #       ang(n) = pcs_start + (pcs_end - pcs_start) * n/(N-2)
+        #   取当前索引 n_i 处的 ang。因为参考轨迹 u_i 本身满足
+        #   u_i[0] >= cos(ang)*|u_i|，所以 ang >= 参考倾角【恒成立】——
+        #   限幅永远不会与参考轨迹打架，只会剪掉 PD 修正的越界部分。
+        #   末端 ang -> pcs_end（=5°）=> 触地姿态竖直。
+        #
+        # 【为什么不加 +8 裕量】和为什么不加 25° 地板同理：裕量会让末端
+        #   锥角停在 pcs_end+8，仍然达不到"< 5°"的指标。PD 修正若被锥
+        #   剪掉，说明它要求的姿态本就超出规划保证的可行域 —— 不该放行。
         tilt_traj = math.degrees(math.atan2(
             float(np.linalg.norm(u_i[1:3])), max(1e-09, float(u_i[0]))))
-        tilt_now = max(tilt_traj + 8.0, CONIC_TILT_DEG)
-        tilt_now = min(tilt_now, 89.0)
+        tilt_now = self._solver_cone_deg(self.gfold_n_i, N)
+        tilt_now = min(max(tilt_now, PCS_END_DEG), 89.0)
+        # 【自检：锥角不得低于参考轨迹倾角】
+        #   推导保证 ang >= 参考倾角恒成立。若违反，说明 codegen 模型里的
+        #   锥与这里的 PCS_START/END_DEG 常量【不一致】（例如改了常量却忘了
+        #   重跑 gen_codegen.ps1，或反过来）—— 那正是"限幅剪掉自己规划的
+        #   轨迹"这一类"完全不跟踪"故障的来源。
+        #   【必须可见】本项目吃过"静默失败"的亏（见 _load_cgen 的启动可见性
+        #   注释：扩展没加载、静默回退 cvxpy 导致 48 倍变慢而上飞）。
+        #   这里既计数（进日志列 cone_mis）又在首次发生时【打印一行】。
+        self._cone_mis = max(0.0, tilt_traj - tilt_now)
+        if self._cone_mis > 1e-6:
+            self._cone_mismatch_n = int(getattr(self, '_cone_mismatch_n', 0)) + 1
+            if not getattr(self, '_cone_warned', False):
+                self._cone_warned = True
+                print('[WARN] 锥角 %.2f° < 参考轨迹倾角 %.2f°：'
+                      '控制器锥比规划的锥更紧，会剪掉参考轨迹本身。'
+                      % (tilt_now, tilt_traj))
+                print('[WARN] 检查 gfold_land.PCS_END_DEG(%.1f) 与 '
+                      'gfold_codegen PCS_END_DEG_P3/P4 是否一致，'
+                      '并重跑 tools/gen_codegen.ps1'
+                      % PCS_END_DEG)
         target_a = self.conic_clamp(target_a, min_mag, max_mag, tilt_now)
         target_a_ = self.conic_clamp(target_a_, min_mag, max_mag, tilt_now)
 
@@ -1813,6 +1873,32 @@ class GfoldLander:
         _hover = G0 * _m / _t_true
         floor = min(GFOLD_THROTTLE_MIN, GFOLD_THROTTLE_MARGIN * _hover)
         return floor * a_cap
+
+    def _solver_cone_deg(self, index, N):
+        """求解器那条【推力指向锥】在第 index 个节点处的半角 [deg]。
+
+        【为什么要与求解器完全一致（第一步改动 1c）】
+          求解器（gfold_p3p4._solve_one / gfold_codegen.build）施加的约束是
+              u[0,n] >= cos(ang(n)) * |u[:,n]|,
+              ang(n) = PCS_START_DEG + (PCS_END_DEG - PCS_START_DEG) * n/(N-2)
+          这是【规划可行域的边界】。控制器若用另一条曲线做限幅，两者就
+          自相矛盾：限幅比它紧 -> 参考轨迹自己被剪掉（不跟踪）；
+          限幅比它松 -> 允许规划从未验证过的姿态（姿态失守）。
+          所以这里的公式必须与求解器【逐字对应】。
+
+        【与旧行为的区别】旧代码用 max(tilt_traj + 8, 25)：
+          · 25 是地板 -> 末端永远 >= 25°，与 pcs_end=5 矛盾
+          · +8 裕量   -> 末端停在 pcs_end+8，仍不满足"< 5°"
+        现在直接返回解析锥角，末端 = PCS_END_DEG = 5°。
+
+        【参数】
+          index : 当前沿轨迹的索引（gfold_n_i，可含小数）
+          N     : 参考轨迹的节点数（= x.shape[1]，P4 为 N4=80）
+        """
+        _N = max(2, int(N))
+        frac = float(index) / max(1.0, float(_N - 2))
+        frac = max(0.0, min(1.0, frac))
+        return float(PCS_START_DEG + (PCS_END_DEG - PCS_START_DEG) * frac)
 
     def conic_clamp(self, target_a, min_mag, max_mag, tilt_deg=None):
         """把推力加速度指令限幅到推力锥内。
@@ -2254,6 +2340,11 @@ class GfoldLander:
             atq_floor=_f(getattr(self, 'dbg_atq_floor', None), 0),
             # 【2026-09-29】推力自校准系数（应稳定在 1.41 附近）
             t_scale=_f(getattr(self, '_tscale', None), 4),
+            # 【2026-09-29 第一步 1c】锥角自检：控制器锥 - 参考轨迹倾角。
+            #   >0 说明"锥比规划更紧"（会剪掉参考轨迹本身）—— 应为 0。
+            cone_mis=_f(getattr(self, '_cone_mis', None), 2),
+            # 累计违反帧数（>0 即表示模型与常量不一致，需要重跑 codegen）
+            cone_bad=_f(getattr(self, '_cone_mismatch_n', None), 0),
             pid_sat_x=_f(getattr(self, 'dbg_pid_sat_x', None), 0),
             pid_sat_z=_f(getattr(self, 'dbg_pid_sat_z', None), 0),
             pid_sat_run=_f(getattr(self, 'dbg_pid_sat_run', None), 0),

@@ -26,10 +26,20 @@ __pycache__/
 #   时加载与求解均正常（solve 0.0735 s，status=optimal）。
 #   build/ c/ cpp/ problem.pickle README.html 等约 37 MB 是编译中间产物，
 #   不需要，且由 pwsh -File tools/gen_codegen.ps1 可再生。
+#   【2026-09-29 修复：路径前缀失效】以上模式是相对 .gitignore 所在目录
+#   （dev/）匹配的，即它们只匹配 dev/cpg_p3/*。而 2026-09-28 求解器迁移
+#   之后实际路径是 dev/solver/cpg_p3/* —— 于是这些规则【全部静默失效】，
+#   重新生成 codegen 时 build/、c/、cpp/、problem.pickle 等约 37 MB
+#   中间产物会全部变成"未跟踪文件"（git status 里 16 条 ?? ）。
+#   ⇒ 两种路径都写，保证迁移前后都成立。
 cpg_p3/*
 cpg_p4/*
 !cpg_p3/cpg_module_p3*.pyd
 !cpg_p4/cpg_module_p4*.pyd
+solver/cpg_p3/*
+solver/cpg_p4/*
+!solver/cpg_p3/cpg_module_p3*.pyd
+!solver/cpg_p4/cpg_module_p4*.pyd
 GFOLD_p3/
 GFOLD_p4/
 

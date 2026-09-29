@@ -179,12 +179,30 @@ def _load_cgen(program, N):
     return mod
 
 
-def _solve_one_cgen(program, x0, mass, tf, N):
+def _solve_one_cgen(program, x0, mass, tf, N, pcs_deg=None, pcs_start_deg=None):
     """用 C 代码生成求解器求解。成功返回与 _solve_one 同构的 dict。
 
     【tf 已参数化】生成的模型把 tf 作为 Parameter（验证过 DCP+DPP 均通过），
     所以【一份模型覆盖任意 tf】—— 不再需要按 tf 网格生成多份。
     只有 N（节点数）是编译期固化的，必须与生成时一致。
+
+    ========================================================================
+    【2026-09-29 第一步改动 1d：pcs_deg / pcs_start_deg 在 codegen 路径上
+      【不起作用】—— 现在会明确告警，不再静默忽略】
+    ------------------------------------------------------------------------
+    【事故】生成的 C 模型把锥角曲线【编译期固化】进约束矩阵，运行时无法
+      修改。而调用方 gfold_land.solve() 一直在传 pcs_deg=PCS_END_DEG，
+      看起来"改了参数就生效"，实际【完全无效】：
+          实测 pcs_deg=30 与 pcs_deg=5 走 codegen 得到【逐位相同】的轨迹
+          （末端倾角都是 9.52°）。
+      这让人误判"末端倾角已经按 pcs_deg 控制好了"，而真相是它一直是
+      生成时烧进去的 gfold_codegen.PCS_END_DEG。
+    【修法】把两个参数收进来，与 GC 的同名常量比对；不一致就打印一行
+      【醒目】告警（只打一次），并说明该改哪个文件。仍然走 codegen
+      （它快 48 倍），只是不再骗人。
+    【正确的改法】改锥角要改 dev/solver/gfold_codegen.py 的
+      PCS_START_DEG / PCS_END_DEG，然后重跑 tools/gen_codegen.ps1。
+    ========================================================================
     """
     m = _load_cgen(program, N)
     if m is None:
@@ -194,6 +212,24 @@ def _solve_one_cgen(program, x0, mass, tf, N):
         want_n = GC.N_P3 if program == 3 else GC.N_P4
         if N != want_n:
             return None                          # 维度固化，必须一致
+        # ================================================================
+        # 【1d】锥角是编译期固化的：调用方传的值【不生效】。
+        #   不一致时给一行醒目告警（只打一次），避免"改了参数以为生效"。
+        #   判据用【有效值】：未传(None)表示"沿用生成时的值"，视为一致。
+        # ================================================================
+        _ps = GC.PCS_START_DEG if pcs_start_deg is None else float(pcs_start_deg)
+        _pe = GC.PCS_END_DEG if pcs_deg is None else float(pcs_deg)
+        if (abs(_ps - GC.PCS_START_DEG) > 1e-9
+                or abs(_pe - GC.PCS_END_DEG) > 1e-9):
+            if not getattr(_solve_one_cgen, '_cone_warned', False):
+                _solve_one_cgen._cone_warned = True
+                print('[cgen] *** 锥角参数被忽略：codegen 模型已把锥角固化 ***')
+                print('[cgen]     调用方想要 pcs_start=%.1f pcs_end=%.1f'
+                      % (_ps, _pe))
+                print('[cgen]     模型实际是 pcs_start=%.1f pcs_end=%.1f'
+                      % (GC.PCS_START_DEG, GC.PCS_END_DEG))
+                print('[cgen]     改锥角请改 dev/solver/gfold_codegen.py 的'
+                      ' PCS_START_DEG / PCS_END_DEG 并重跑 gen_codegen.ps1')
         par = m.cpg_params()
         upd = m.cpg_updated()
         names = m.param_names
@@ -415,6 +451,38 @@ def _solve_one(program, x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
             con += [u[0, n] >= np.cos(ang) * s[0, n]]
         # 地面以下禁止（原版注释掉了，本项目保留：防止"先落地再飞起"）
         con += [x[0, n] >= 0]
+        # ================================================================
+        # 【2026-09-29 第一步改动 4：竖直铁律 —— 全程不许爬升】
+        #   与上面的 x[0,n] >= 0 配对。只有"不穿地"时，求解器仍可给出
+        #   "俯冲-回弹"畸形解（diag10 实测节点 28 高度 0、垂速 -1.3，
+        #   随后爬到 157 m 再落回）。
+        #   真实回收剖面单调下降，这条不损失最优性，只封掉畸形解。
+        #
+        #   【只对 P4 施加 —— P3 必须排除】实测（gate 686.8/d300/-70/60/
+        #   156.9 t，N3=160，tf_guess=40）：
+        #        no_climb OFF : P3 在节点 36 落到 h=0.0 并停住
+        #                       -> tf_m 检测(位置+速度 < 0.1)命中节点 36
+        #                       -> tf_m = 9.0 s
+        #        no_climb ON  : 轨迹形状几乎不变，但"停住"的那段变成
+        #                       h=0.2（而不是 0.0）—— 因为要满足 vz<=0，
+        #                       离散解把驻留高度抬了 0.2 m
+        #                       -> 0.2 > 0.1 的检测阈值 -> 检测直到节点 158
+        #                       才命中 -> tf_m = 39.5 s（虚高 4.4 倍）
+        #   ⇒ 这条约束本身【在物理上无害】（两版轨迹逐节点几乎相同），
+        #     但它暴露了 P3 的 tf_m 检测阈值（绝对 0.1 m）过于脆弱。
+        #     tf_m 是 tf4 的输入，tf4 直接决定 P4 的轨迹长度 —— 虚高 4.4 倍
+        #     会让 P4 规划一条 40 s 的松散轨迹，实际飞行完全跟不上。
+        #   【为什么不在本次修阈值】阈值一改就同时改变了 P3 的既有行为，
+        #     属于"顺手重构"，违背"一次只改一件事、改完就能验证"的原则。
+        #     本次取最小改法：P3 保持原样（它的轨迹本来就【被丢弃】，
+        #     唯一产物 tf_m 用原阈值即可），只把竖直铁律施加在真正要飞的
+        #     P4 上。阈值脆弱性已记在此处，留作后续单独处理。
+        #   【与 codegen 的关系】codegen 对 P3/P4 【各生成一份独立模型】
+        #     （gc.generate_one(3,…) 与 (4,…)），所以 gfold_codegen.py 里
+        #     同样必须写成 program == 4 才加 —— 两边语义要一致。
+        # ================================================================
+        if program == 4:
+            con += [x[3, n] <= 0]
 
         if n > 0:
             z0 = z0_term_log[0, n]
@@ -598,7 +666,8 @@ def _solve_p3p4_impl(x0, mass, isp=315.0, t_max=8.99e6,
     #   P3 的 N3=160（比 P4 大一倍），cvxpy 解要 1.5~2.8 s，是现在的主要瓶颈。
     #   实测 tf_m 对 N3 敏感（N3=40 会退化到 38 s），故【不降 N3】，
     #   改为生成 N3=160 的 C 求解器。
-    r3 = _solve_one_cgen(3, np.asarray(x0, float), mass, tf_guess, N3)
+    r3 = _solve_one_cgen(3, np.asarray(x0, float), mass, tf_guess, N3,
+                         pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg)
     if r3 is None:
         r3 = _solve_one(3, np.asarray(x0, float), mass, isp, t_max, throttle,
                         tf_guess, gs_deg, pcs_deg, v_max, N3, straight_fac,
@@ -620,7 +689,8 @@ def _solve_p3p4_impl(x0, mass, isp=315.0, t_max=8.99e6,
     #   【为什么只对 P4 走这条】P4 输出最终轨迹，是耗时大头；
     #   而生成版把 tf 固化在模型里（TF_GEN=21.0），只有本次 tf4 接近时可用。
     #   P3 只用来估 tf_m，成本较低且 tf 可变，保持 cvxpy。
-    r4 = _solve_one_cgen(4, np.asarray(x0, float), mass, tf4, N4)
+    r4 = _solve_one_cgen(4, np.asarray(x0, float), mass, tf4, N4,
+                         pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg)
     if r4 is None:
         r4 = _solve_one(4, np.asarray(x0, float), mass, isp, t_max, throttle,
                         tf4, gs_deg, pcs_deg, v_max, N4, straight_fac, target_alt,
