@@ -89,7 +89,7 @@ G0 = 9.80665
 
 TARGET_LAT = -0.0972060951675948      # 回收场（与 kOS 侧 tgt_lat 一致）
 TARGET_LON = -74.5576822740041
-TARGET_ALT = 36.8                     # 着陆腿触点高度（雷达高度基准）
+TARGET_ALT = 17                     # 着陆腿触点高度（雷达高度基准）
 TARGET_HEADING_DEG = 90.0             # 机头朝东（与 kOS 发射段一致）
 
 # 交班门（与 boot/B1040-9.ks 的 gfold_h / gfold_vmax / gfold_cone 对齐）
@@ -121,9 +121,65 @@ TARGET_HEADING_DEG = 90.0             # 机头朝东（与 kOS 发射段一致�
 #   【注意】GATE_ALT_MIN=358 保持不变；新门 686.8 m 距它只有 328.8 m 裕度，
 #     而段1 现在还要额外消掉 35 m/s 横速（详见 kOS 侧 vh_gate 注释）。
 #     这是本次改动的最大风险点。
-AIM_ALT = 500.0                       # 瞄准点抬高量 [m]（与 kOS aim_alt 一致）
+# ============================================================================
+# 【2026-09-29 第五步 5(c)：AIM_ALT 500 -> 2000（用户要求抬高瞄准点）】
+# ----------------------------------------------------------------------------
+# 【为什么要抬高】上一趟（gfold_log_20260929_181402）的失败根因是
+#   【推力权限不足】，不是能量不够：
+#     · 巡航段规划要的推力只有 5.7 m/s²（油门 0.07）
+#     · gimbal 力矩正比于油门，实测 alpha_max 只有 4.2 deg/s²
+#     · 而该段规划要求的姿态在 70~82 deg（日志帧 3~25）
+#   抬高瞄准点把交接高度从 686.8 m 提到 2186.8 m，给段2 更长的下降行程
+#   与时间（tf 10.8 s -> 34.2 s），使巡航段可以用更小的推力、更平缓的
+#   姿态完成制动。
+#
+# 【实测（cgen，mass 157 t，入口 vz=-66.4 vh=19.9）】
+#     AIM_ALT  entry_h  tf_m   tf4    land_t   |u|max
+#        500     650     10.2   10.8   148.4    48.18
+#        900    1050     15.0   17.0   145.5    46.92
+#       2000    2150     29.8   34.2   137.9    35.83
+#   => 制动时间变长、峰值推力降低（|u|max 48.2 -> 35.8），
+#      代价是多耗油（落地剩余 148.4 -> 137.9 t，少剩 10.5 t）。
+#   【可行域上限】再往上到 2500 m 时 P3 自身 infeasible，故 2000 m
+#     已接近该入口状态下的可行上限。
+#
+# 【前提：必须先修好第五步 5(b)】旧的 tf4 = tf_m + 0.5 在【开启下降率
+#   包络】时不够用 —— 实测 AIM_ALT>=900 会因【tf 余量不足】而
+#   p4 infeasible（并非能量不够：P4 在 tf=34 s 时 optimal、落地 138 t）。
+#   5(b) 已把 tf4 改为"探测到最小可行值"，否则本改动会直接失败。
+#
+# 【必须与 boot/B1040-9.ks 的 aim_alt 保持一致】两边描述同一个瞄准点，
+#   改一边不改另一边会让交接高度与 kOS 的 h_aim 判据错位。
+#   => 本次【两个文件同时改】。
+# ============================================================================
+# ============================================================================
+# 【2026-09-29 第六步 6(c)：AIM_ALT 2000 -> 1000】
+# ----------------------------------------------------------------------------
+# 【为什么从 2000 降回 1000】实飞 gfold_log_20260929_185950（AIM_ALT=2000）
+#   的实测结果【不支持】继续用 2000：
+#     · 落点偏差 495.90 m（AIM_ALT=500 时是 4.80 m）—— 差 100 倍
+#     · 触地横速 38.16 m/s（原 27.47）
+#     · max|vz| 134.22（包络上限 80，超 68%）
+#     · tilt_act 冲到 142.69 deg（>90 = 机头朝下），11 帧越过 90 deg
+#     · 控制周期 loop_dt 从 0.198 s 涨到 1.48~1.60 s，持续 10 帧
+#   其中【规划的峰值倾角】从 34.5 deg（aim 500）升到 51.5 deg（aim 2000）：
+#   抬高瞄准点并没有让规划更"平缓"，因为交点速度更大（|v|=81.1 vs 69.3）。
+#   多耗 10.5 t 燃料、暴露时间 33.8 s（原 10.5 s），收益为负。
+#
+# 【为什么不直接回 500】抬高瞄准点有一个已证实的正面效果：
+#   交班高度 686.8 -> 2186.8 m 后，段1 消横速所需的高度不再威胁
+#   GATE_ALT_MIN=358（原余量仅 22 m，见 boot/B1040-9.ks 的风险注释）。
+#   1000 m 是【折中】：交班高度 1186.8 m，距 358 m 仍有 828.8 m 余量，
+#   而 tf 与暴露时间约为 2000 m 的一半。
+#
+# 【必须与 boot/B1040-9.ks 的 aim_alt 保持一致】=> 本次两个文件同时改。
+#   （上一轮 AIM_ALT=2000 的完整理由保留在本注释历史中：
+#     抬高瞄准点让 tf 从 10.8 s 增到 34.2 s、峰值推力 48.2 -> 35.8，
+#     但实飞证明这并未解决姿态问题，反而放大了失控时间。）
+# ============================================================================
+AIM_ALT = 1000.0                      # 瞄准点抬高量 [m]（与 kOS aim_alt 一致）
 GATE_AIM_H = 150.0                    # "到达瞄准点附近"的容差 [m]
-GATE_ALT = TARGET_ALT + AIM_ALT + GATE_AIM_H      # = 686.8 m
+GATE_ALT = TARGET_ALT + AIM_ALT + GATE_AIM_H      # = 1186.8 m（AIM_ALT=1000）
 GATE_VMAX = 120.0                     # 段1 在瞄准点已把速度收到 0，
                                       #   故门槛收紧（旧 480 太松）
 GATE_CONE_DEG = 48.0                  # 保持 48°
@@ -208,9 +264,269 @@ V_DESCENT_TERM_VZ = 4.0
 #   附加条件，而现在默认已不重解（--replan-dt 0）；设为 GATE_ALT 保持语义一致。
 START_ALTITUDE = GATE_ALT
 
+# ============================================================================
+# 【2026-09-29 第七步 7(b)：姿态回路三项结构改动】
+# ----------------------------------------------------------------------------
+# 【实测依据：gfold_log_20260929_195847.csv（85 帧，装分段计时的第一趟）】
+#
+# (i) 【D 项微分的不是机身角速度】—— 这是过冲的主因之一
+#     把日志里的 pid_dx 反解出 PID 真正的 D 输入 diff（核对过 dt=loop_dt，误差 0）：
+#         |diff|    均值 12.5 deg/s   最大 122.7 deg/s
+#         |avel_p|  均值  5.3 deg/s   最大  12.0 deg/s
+#     对 diff 与机身角速度 avel_p 做线性回归：
+#         diff ~ 0.782*avel_p - 0.021      R^2 = 0.046
+#         corr(diff, avel_p) = 0.215
+#     ⇒ D 项输入里【只有 4.6% 是机身角速度】，其余是噪声/病态量。
+#     【为什么】err_x = angle_around_axis(tgt_local, +y, +x) 是【机体系轴角】，
+#       它在机头接近目标时病态：实测帧 2->3 时参考恒为 30.00、载具只转 1.0 deg，
+#       而 err_x 从 16.85 跳到 -3.02（20 deg）。它的导数不是转速。
+#     【后果】|-kd*diff| 饱和 11/82 帧；若换成真实角速度 |-kd*avel| 饱和 0 帧。
+#
+# (ii) 【我的 30 deg 限幅把平滑规划切出了拐点】
+#     27/85 帧的 tilt_dir_cmd 恰为 30.00（限幅在起作用）。硬限幅 = min(raw,30)
+#     在穿越处【斜率突变为 0】，D 项直接吃到这个拐点：
+#         实测 |d(dir_cmd)/dt| 最大 78.2 deg/s，全部出现在限幅边界。
+#     对比载具能力：alpha_min=4.4 deg/s^2 时，转 20 deg 只能达到 ~13 deg/s。
+#     ⇒ 限幅【必须带斜率限制】，否则把拐点注入控制回路。
+#
+# (iii)【增益应与权限匹配（用户提出）】
+#     alpha_max 随油门变化 4.44 ~ 35.37 deg/s^2（8 倍，corr(alpha,throttle)=0.818）。
+#     二阶模型 zeta = (kd/2)*sqrt(alpha/kp)：
+#         kp 固定 2.0 -> zeta 在 0.246 ~ 0.694 间摆 2.8 倍（低油门严重欠阻尼）
+#         kp 正比于 alpha -> zeta 与 alpha 【无关】，成为常数
+#     这是【用户提出的"PID 随油门变化"】的理论依据，且是纯解析结论。
+#     【前馈】u = kp*e + kd*de/dt 且 e = ref - theta
+#         => u = kp*e + kd*d(ref)/dt - kd*omega
+#     即【结构上已经含前馈】（+kd*dref/dt）与阻尼（-kd*omega）。
+#     所以不需要新增前馈项；需要的是让这两项【算得准】—— 这正是 (i) 与 (ii)。
+# ============================================================================
+TAU_SCHED_ENABLE = True   # 是否启用"增益随权限调度"（用户要求）
+TAU_SCHED_MIN = 0.35      # 调度下限系数（防止 alpha->0 时 kp->0 失去响应）
+TAU_SCHED_MAX = 1.60      # 调度上限系数（防止高油门时 kp 过大导致饱和）
+# 【默认关闭 —— 我没有验证通过，所以不敢默认开】
+#   离线 1-DOF 仿真给了互相矛盾的结论：
+#     · 用【固定 25 deg/s】限速：过冲 22.2 -> 6.9 deg、饱和 97% -> 3%
+#     · 但把指标换成"相对【规划】的跟踪误差 ISE"（更接近物理需求）：
+#       限速【没有改善】（225.0 -> 226.4），反而略差
+#     · 而且该仿真预测饱和 97%，而【实测】out_z 只有 48%
+#       => 这个 1-DOF 模型【不是可信的预测器】，不能用它下结论
+#   【风险】限速会让参考【落后于规划】—— 等于主动要求载具按一个偏离规划的
+#     姿态飞。这有可能削弱制动（倾角决定推力的水平/竖直分配）。
+#   【结论】实现保留、默认关闭。若要试，先只开这一项单独飞一趟。
+# ============================================================================
+# 【2026-09-29 第九步 9(a)：打开参考斜率限制（用户要求"先加限速"）】
+# ----------------------------------------------------------------------------
+# 【为什么现在开】第八步 8(a) 加回前馈后，实测 gfold_log_20260930_000755 证明：
+#   · 前馈本身【实现正确】：记账 0/127 帧不符、号相关 +0.724、随参考速率单调
+#   · 但【没有收益】：滞后斜率 -0.164 -> -0.168 s（未动）
+#   · 根因：前馈微分的参考里带着【6(b) 硬限幅的拐点】，而且限幅恰好咬在
+#     参考最快的时候 —— 实测被限帧的 |d(ref)/dt| 均值 46.9 deg/s，
+#     全体帧只有 7.4 deg/s，【比值 6.3x】。
+#   ⇒ 参考不干净，前馈就没有可用信号。本限速就是把它弄干净。
+#
+# 【它同时解锁前馈增益】测得滞后斜率 -0.168 s 说明环路是一阶滞后（tau=0.17 s），
+#   抵消一阶滞后需要前馈增益 1.0；但参考速率最大 4.0 rad/s，
+#   增益 1.0 会让 kd*ff 达到 10.0（满权限的 10 倍）——必然全网饱和。
+#   先限速，才敢把 FF_GAIN 从 0.30 往 1.0 提。
+#
+# 【残留风险（必须在下一趟核对）】限速让参考【落后于被 PD 修正后的目标】。
+#   但注意：实测规划本身的峰值倾角只有 14.8 deg，远低于 30 deg 限幅 ——
+#   那些 240 deg/s 的尖峰【是 PD 生成的，不是规划的】。
+#   所以限制"含 PD 的参考"并不等于偏离规划。这一点要用下一趟日志验证。
+REF_SLEW_ENABLE = True    # 是否对参考倾角做斜率限制（9(a) 开启）
+
+# ============================================================================
+# 【2026-09-30 第十步 10(a)：竖直下限与锥角解耦 + 用规划自身封顶】
+# ----------------------------------------------------------------------------
+# 【要修的确凿缺陷】实测 gfold_log_20260930_003653.csv：
+#   帧 6..38 的 a_up = 0.46 .. 2.14，而 atq_floor=1（下限"在工作"）。
+#   32/112 帧（29%）a_up < 2.0，导致 tilt_cmd 冲到 83.9 deg，
+#   而【规划峰值倾角只有 14.97 deg】。
+#
+# 【根因】conic_clamp 里竖直下限被锥角乘掉了：
+#       a_ver_min = cos(cone) * min_mag
+#   min_mag = min(0.05*a_cap, 1.02*|u_plan|) = min(4.05, 5.81) = 4.05
+#   而锥角从 85 deg 起（PCS_START_DEG），于是：
+#       node 0 : cos(85.0)=0.087 -> a_ver_min = 0.35   <- 等于没有
+#       node 8 : cos(76.9)=0.227 -> a_ver_min = 0.92
+#       node 16: cos(68.8)=0.362 -> a_ver_min = 1.46
+#   下限的【意图】是"至少保留 min_mag 的推力"，但 cos(cone) 在早期把它
+#   压到不足 1/10。日志实测 a_up=0.46 与 cos(85deg)*4.05=0.35 完全吻合。
+#
+# 【修法】把"竖直保底"与"锥角"解耦，并【用规划自身的 a_ver 封顶】：
+#       a_ver_min = max( cos(cone)*min_mag,  min(FLOOR, plan_a_ver) )
+#
+# 【为什么必须用 min(FLOOR, plan_a_ver) 封顶 —— 这是本步最关键的一处】
+#   【反推约束】推力只能沿机身推，没有反向推力，所以竖直方向的唯一手段是
+#     a_ver < g0。若下限 >= g0，净竖直加速度 >= 0，载具【永远下不来】。
+#       F < g0 = 9.81 m/s^2        <- 硬天花板（悬停）
+#   但【实用天花板更低】：下限若高于规划自己的 a_ver，就等于【推翻规划】，
+#   要求载具比规划推得更竖直。
+#   【实测规划 min a_ver 随交接状态变化很大】：
+#       vz=-66 vh=11  -> min 5.56        vz=-66 vh=9.4  -> 5.51
+#       vz=-66 vh=20  -> min 4.20        vz=-50 vh=11   -> 0.60(!)
+#       vz=-80 vh=11  -> 5.64            vz=-66 vh=0    -> 5.69
+#   ⇒ min 在 0.60 .. 5.69 之间摆。用【固定】FLOOR=5.0 会在 vz=-50 那类
+#     状态下压过规划的 6/79 个节点。故必须 min(FLOOR, plan_a_ver) 封顶。
+#   【验证（6 个交接状态）】用封顶写法后，"下限抬高到超过规划"的节点数
+#     在所有状态里都是 0。这与第五步 5(a) 的"下限不得超过规划"是同一原则。
+#
+# 【取值 5.0】低于常见状态的规划 min（5.51~5.69），所以正常情况下
+#   完全不干预规划、只在 PD 把 a_up 压塌时托底。
+#
+# 【代价】实测燃料几乎不变（146.1 t 对 146.1 t）：因为规划早期本来就用
+#   a_ver≈5.5，下限只是防止 PD 压塌，并没有让载具多推。
+#   【注意】抬高 a_ver 只让 |a| 变大，【不减少 a_hor】—— 横向能力不受损。
+# ============================================================================
+AVER_FLOOR_ENABLE = True   # 是否启用"竖直保底"（与锥角解耦）
+AVER_FLOOR = 5.0           # 竖直保底 [m/s^2]，必须 < g0(9.81) 且受规划封顶
+# ---- 参考斜率限制的取值 ----
+#   【口径】allowed_slew = sqrt(2*alpha*headroom)，headroom 是【允许的角行程】。
+#     物理含义：从静止加速到 allowed_slew、再以同样减速度停住，总角行程正好
+#     等于 headroom。按此限速，参考永远停在"能起步也能停住"的范围里。
+#   【为什么用角度而不是固定速率】alpha 随油门变化 8 倍，固定速率在低油门端
+#     必然超标、在高油门端又过慢；用角行程口径可自动适配。
+#   【实测标定】195847：alpha=4.44 deg/s^2 时转 20 deg 只能达到 ~13 deg/s。
+#     取 headroom=45 deg：低油门端 -> 20 deg/s，高油门端 -> 56 deg/s（被上限截）。
+REF_SLEW_HEADROOM_DEG = 45.0   # 允许的角行程 [deg]
+REF_SLEW_MIN = 8.0             # 斜率下限 [deg/s]（避免权限极低时参考冻结）
+REF_SLEW_MAX = 45.0            # 斜率上限 [deg/s]（避免高油门时参考过快）
+RATE_D_GAIN = 0.78        # D 项用真实角速度后的阻尼增益。
+#   【取值依据】旧律（对误差差分）的实测等效系数是 +0.782（ch x）/ +0.724
+#   （ch z），故旧律等效阻尼 = kd*0.78 ≈ 1.95。这里取 1.0 得 kd*1.0 = 2.50，
+#   【同号、略强 28%】。若实飞发现过阻尼（响应迟钝），降到 0.78 即可复现旧律。
+RATE_D_ENABLE = True      # D 项是否用实测角速度（False = 回到对误差差分）
+#   【为什么留开关】7(b)-② 第一版因【符号写反】导致发散（见 apply() 里
+#   212056 事故的完整记录）。留一个开关便于一行回退、不必改代码结构。
+
+# ============================================================================
+# 【2026-09-29 第八步 8(a)：加回【参考方向速率前馈】（用户要求"先修前馈"）】
+# ----------------------------------------------------------------------------
+# 【为什么必须加】第七步 7(b)-② 把 D 项从 d(err)/dt 换成实测角速度 +omega 时，
+#   【顺手删掉了前馈】。这不是我当时的意图，是代数的副作用：
+#
+#     旧律  diff = d(err)/dt   applied = e*kp + kd*d(err)/dt
+#           且 e = ref - theta  => d(err)/dt = d(ref)/dt - omega
+#           => applied = e*kp + kd*d(ref)/dt - kd*omega
+#                        └ 前馈 ┘        └  阻尼  ┘
+#
+#     我的律 diff = +omega     applied = e*kp                - kd*omega
+#                                        【前馈项消失了】
+#
+# 【实测证据：机身稳定滞后参考】滞后的物理特征就是"缺前馈"。
+#   把 lag = tilt_act - tilt_dir_cmd 对 d(ref)/dt 做回归：
+#       gfold_log_20260929_195847 : corr = -0.294  slope = -0.223 s
+#       gfold_log_20260929_223938 : corr = -0.269  slope = -0.164 s
+#   即【参考动得越快、机身落后越多】，时间常数 0.16~0.22 s。
+#
+# 【本前馈的算法（刻意避开"猜符号"）】
+#   我上一轮在 7(b)-② 就是靠"推理符号"写反了、导致反阻尼发散，
+#   所以这次【不再推理符号】——用与 err_x/err_z 完全相同的函数来算：
+#     ① 记下上一帧的 target_direction（世界/目标系）
+#     ② 本帧参考自身位移 d_world = (dir - dir_prev)/dt
+#     ③ 转到机体系：d_local = _transform(d_world, rot_s2l)
+#     ④ 只把【参考】扰动一下（机身不动），用同一个 _angle_around_axis 算出
+#        那一瞬间的 err_x/err_z，再差分 —— 得到【参考运动对误差的贡献】
+#          ff = (err(tgt+ d_local*dt) - err(tgt)) / dt
+#   这样 ff 与 err 的符号约定【天然一致】，不需要任何额外假设。
+#
+# 【与旧律的对应关系】实测 d(err)/dt 的机身部分系数约 +0.78（见 7(b)-②），
+#   故  d(err)/dt ≈ 0.78*omega + ff
+#   => RATE_D_GAIN=0.78 且 FF_GAIN=1.0 时，本实现【等价于旧律】。
+#      取 FF_GAIN<1（默认 0.6）是因为旧律的 d(err)/dt 同时含病态噪声
+#      （|d(err)/dt| 曾达 122 deg/s，而真实转速只有 12），只想要其中
+#      【参考驱动】的那一份，不想把噪声也放大。
+#
+# 【必须限幅】实测 |d(ref)/dt| 最大 240 deg/s = 4.19 rad/s。
+#   kd*4.19 = 10.5，而控制量只有 ±1 => 必然饱和。
+#   故对前馈项做限幅（FF_CLAMP_RAD），保证它只做"提前量"、不夺走全部权限。
+# ============================================================================
+FF_ENABLE = True           # 是否启用参考方向速率前馈
+# ---- 前馈权重 ----
+#   【1.0 = 与旧律 d(err)/dt 的参考项完全等价】旧律实测 diff 的角速度系数是
+#   +0.780（见 7(b)-②），即旧律自带 0.78 的"阻尼"份；而参考项系数理论为 1.0。
+#   【取 0.30 而不是 1.0 的理由：参考速率是重尾分布】
+#     实测 3D 参考方向速率 |d(dir)/dt| [rad/s]：
+#        p10=0.0043  p25=0.0144  p50=0.0897  p75=0.418  p90=0.965  p99=3.45  max=4.82
+#     即【中位只有 5 deg/s，但 p99 高达 198 deg/s】—— 少数帧的参考几乎在跳变。
+#     这些跳变里，倾角标量 tilt_dir_cmd 是【限幅边界造成的拐点】（第 6(b) 步
+#     的硬限幅 min(raw,30) 在穿越处斜率突变，实测 |d(dir)/dt| 最大 78 deg/s
+#     全部来自这些边界），不是真实的刚性体运动。
+#     重尾输入配高增益 = 把拐点当成指令去追 => 抖动。
+#   【取 0.30 后限幅咬合率】clamp=0.12 rad/s 时：
+#        gain 0.15 -> 13% 帧被限    gain 0.30 -> 28%
+#        gain 0.60 -> 35%           gain 1.00 -> 43%
+#     0.30 让【大部分常态帧不受限、只有跳变帧被削】，符合"前馈只做提前量"。
+#   【与阻尼项的预算对比】kd*RATE_D_GAIN*|avel| 实测 mean=0.197 p90=0.402
+#     max=0.528；前馈上限 kd*clamp=0.300。两者同量级，前馈不会压过阻尼。
+FF_GAIN = 0.30             # 前馈权重（1.0 = 完全等价旧律；0 = 纯阻尼）
+# ---- 前馈限幅 [rad/s]（必须按【控制量预算】定，不能拍脑袋）----
+#   【为什么必须限幅】实测 |d(ref)/dt| 最大 240 deg/s = 4.19 rad/s。
+#     D 项进控制量时乘 kd=2.5，故 kd*ff 会达到 10.5，而控制量只有 ±1。
+#   【限幅怎么定】前馈应与阻尼/比例项【共享】±1，不能独自吃满：
+#       kd * FF_CLAMP_RAD <= 目标占比
+#     取目标占比 0.30 => FF_CLAMP_RAD = 0.30/2.5 = 0.12 rad/s
+#     这样最坏情况下前馈占 30% 权限，留 70% 给 kp*e 与阻尼。
+#   【实测可达性】真实参考速率：
+#       mean 10.91 deg/s -> ff=0.114 rad/s（未触限）
+#       p90  36.02 deg/s -> ff=0.377 rad/s -> 被限到 0.12（占比 30%）
+#       max 240.00 deg/s -> ff=2.513 rad/s -> 被限到 0.12
+#   ⇒ 限幅只在"参考突然跳变"时生效（那正是最需要保护的情况），
+#     常态参考速率下前馈不被削。
+FF_CLAMP_RAD = 0.12        # = 0.30 权限占比 / kd(2.5)
+
+# ============================================================================
+# 【2026-09-29 第六步 6(b)：姿态指令硬限幅 MAX_TILT_CMD_DEG】
+# ----------------------------------------------------------------------------
+# 【背景：实飞 185950 实测机头翻到地平线以下】
+#   该趟 tilt_act 最大 142.69 deg（>90 = 发动机向下推），共 11 帧 >90 deg。
+#   后果：vh 从 5.96 冲到 114.12 m/s，max|vz| 冲到 134.22（包络上限 80），
+#   落点偏差 495.90 m。
+#
+# 【为什么限 30 deg】（用户指定）
+#   ① 规划本身在该趟要的峰值倾角只有 51.5 deg，而实测到了 142.7
+#      —— 超出部分全部来自失控，不是规划要求。
+#   ② 纵向推力在倾角 theta 下只剩 cos(theta)：
+#        theta=30 -> 0.866；theta=60 -> 0.500；theta=90 -> 0。
+#        超过 30 deg 后参与制动的纵向分量衰减很快，
+#        而横向分量同时制造横测漂移。
+#   ③ 它是【指令限幅】而非物理约束：只改我们要求的方向，
+#      不会阻止载具因惯性继续超过 30 deg。
+#
+# 【口径：限的是【姿态方向】，不是节流】
+#   节流用 target_a（当前点），姿态用 target_a_（前瞻点）。
+#   这里只把【方向向量】的倾角限到 30 deg，方位角与幅值不变，
+#   因此【不影响推力大小】。
+# ============================================================================
+MAX_TILT_CMD_DEG = 30.0
+
 # 是否画参考轨迹线（对齐参考仓库 params.txt 的 debug_lines，它默认 True）。
 #   【2026-09-26 修正】旧版只在 --dry-run 时画，导致正常飞行看不到线。
-DEBUG_LINES = True
+#
+# ============================================================================
+# 【2026-09-29 第七步 7(a)：DEBUG_LINES True -> False（用户要求"先关画线"）】
+# ----------------------------------------------------------------------------
+# 【实测代价】195847 装了分段计时后的逐段统计（85 帧）：
+#     seg_draw  mean=110.3 ms  max=387.6 ms   占 loop_dt 的 54.9%
+#     seg_ctrl  mean= 37.3 ms                 18.6%
+#     seg_state mean=  6.4 ms                  3.2%
+#     seg_auth  mean=  3.9 ms                  1.9%
+#     loop_dt   mean=200.9 ms
+#   draw() 每帧更新约 41 条线、每条写 start+end 两次 RPC => ~82 次写，
+#   折合 1.35 ms/次。而 seg_state（建 3 个参考系 + 6 次读）只要 6.4 ms。
+#   => 画线是控制回路里最贵的一件事，占了超过一半的周期。
+#
+# 【为什么这对姿态重要】抖动/卡顿期间姿态无人修正：
+#   185950 曾出现 loop_dt=1.48~1.60 s 持续 10 帧，姿态冲到 142.7 deg。
+#   关掉画线把周期从 ~0.20 s 降到 ~0.09 s，每帧的姿态修正量翻倍，
+#   直接缩短"失控可累积"的时间窗。
+#
+# 【代价：屏幕上不再显示参考轨迹线】判读飞行状态改用 CSV 日志
+#   （plan_alt / n_i / tilt_dir_cmd 等列），信息量比画线更大。
+#   想恢复：命令行加 --debug-lines（见 argparse 的 --no-debug-lines 反义开关），
+#   它会把本常量覆盖回 True（见 __init__ 里的 self.debug_lines 赋值）。
+# ============================================================================
+DEBUG_LINES = False
 
 
 LOG_DIR = os.path.join(
@@ -463,6 +779,51 @@ FINAL_THROTTLE_MIN = 0.12   # final 段油门下限（参考仓库为 throttle_l
 GFOLD_THROTTLE_MARGIN = 0.96   # gfold 段下限 = 该值 * 悬停油门
 GFOLD_THROTTLE_MIN = 0.16      # 兼容旧名的绝对上限（实际由上式取小）
 
+# ============================================================================
+# 【2026-09-29 第四步 4(a)：放开下限时【必须放一个非零的小值】，不能放到 0】
+# ----------------------------------------------------------------------------
+# 【事故：放到 0 制造了一个零值陷阱】
+#   gfold_log_20260929_173800.csv（第三步的实飞）：
+#       frames with thr_cmd == 0.000 : 36 / 70
+#       frame range: 7 .. 42      持续 7.21 s（t=1.61 -> 8.82）
+#       期间 a_cmd_up = a_cmd_h = 0.000（指令全零）
+#       alt 597.5 -> 305.7，vz -48.15 -> -68.70（7.2 s 纯自由落体）
+#
+#   【根因】conic_clamp 里对【竖直分量】的托底是
+#         a_ver = max(a_ver_min, min(a_ver_max, a_ver))
+#   其中 a_ver_min 由 min_mag 算出。当 3(a) 把 min_mag 放开到 0 时，
+#     a_ver_min = 0，
+#   于是【负的竖直指令不再被托底】，直接返回 [0,0,0]。
+#   直接调用真实的 conic_clamp 实测（a_cap=81.71）：
+#       in a_ver=-0.73 a_hor=5.0  min_mag=0.0   -> [0.00, 0.00]  推力 0.0000
+#       in a_ver=-0.73 a_hor=5.0  min_mag=5.70  -> [5.70, 0.10]  推力 0.0698
+#       in a_ver=-0.73 a_hor=5.0  min_mag=9.414 -> [9.41, 0.17]  推力 0.1152
+#       in a_ver=+2.00 a_hor=5.0  min_mag=0.0   -> [2.00, 0.04]  推力 0.0245
+#
+#   【为什么会主动进入这个陷阱】用该趟日志逐帧复算
+#       raw_a_ver = u_x + (plan_vz - vz)*0.8 + trk_pos_up*0.5
+#   70 帧里有 31 帧为负 —— 因为载具下坠得比规划【慢】(plan_vz - vz < 0)，
+#   PD 的速度项把竖直指令压成负数。于是链路是：
+#       载具比规划下降慢 -> raw_a_ver < 0
+#       -> 3(a) 此刻已把下限放到 0 -> conic_clamp 无托底 -> [0,0,0]
+#       -> 油门 0 -> 下降更快 -> 下一帧 raw_a_ver 更负 -> 【自锁 7.2 s】
+#
+#   【修法】放开时放一个【明确非零】的小值：
+#       floor_released = GFOLD_THROTTLE_RELEASE * a_cap
+#   它必须同时满足：
+#     · > 0     —— 保证 conic_clamp 的 a_ver_min > 0，永不全零
+#     · 明显 < 悬停 —— 否则又变成"下限把火箭往上推"
+#   实测（用 173800 的 70 帧逐帧回放不同放开值，统计全零帧数）：
+#       放开到 0.00 * a_cap -> 30 帧全零（日志真值 36）
+#       放开到 0.02 * a_cap ->  0 帧全零
+#       放开到 0.05 * a_cap ->  0 帧全零
+#       放开到 0.08 * a_cap ->  0 帧全零
+#       放开到 0.10 * a_cap ->  0 帧全零
+#   取 0.05：a_cap≈81.7 时约 4.1 m/s²，仅为悬停(9.8)的 42%，
+#   姿态权限保留一小部分、且不会把载具顶上去。
+# ============================================================================
+GFOLD_THROTTLE_RELEASE = 0.05  # 放开下限时改用该比例（原为 0.0，会全零）
+
 # ============================================================
 # 【2026-09-28 新增】参考轨迹索引推进的修正参数
 # ============================================================
@@ -540,6 +901,36 @@ def _normalize(vec):
     return vec / np.linalg.norm(vec)
 
 
+def limit_tilt_dir(vec, max_tilt_deg):
+    """把【方向向量】vec 的倾角限到 max_tilt_deg，保持水平方位角与模长。
+
+    【2026-09-29 第六步 6(b)】给姿态指令加硬限幅，防止机头翻到地平线
+    以下（实飞 185950 实测 142.7 deg）。详见 MAX_TILT_CMD_DEG 处说明。
+
+    【为什么不能只限第一个分量】vec[0] 与 vec[1:3] 的模必须一起改，
+    否则水平方位角会被拧曲。按三角关系反解：
+        保持 |vec| 与方位角 => vec[0] = |vec|*cos(t)，水平模 = |vec|*sin(t)
+
+    【边界】|vec| ~ 0 时返回原值（无方向可言）；水平分量为 0 时也无需
+    限幅（已经是竖直方向）。
+    """
+    v = np.asarray(vec, dtype=float)
+    n = float(np.linalg.norm(v))
+    if not (n > 1e-9):
+        return v
+    h = float(np.linalg.norm(v[1:3]))
+    if not (h > 1e-12):
+        return v                       # 已经是竖直方向，无需限幅
+    tilt = math.degrees(math.atan2(h, float(v[0])))
+    if tilt <= max_tilt_deg:
+        return v
+    t = math.radians(max_tilt_deg)
+    out = np.array(v, dtype=float)
+    out[0] = n * math.cos(t)
+    out[1:3] = v[1:3] * (n * math.sin(t) / h)
+    return out
+
+
 def _angle_around_axis(v1, v2, axis):
     """原版 angle_around_axis()（demo3_gfold.py line 79-84）。"""
     axis = _normalize(axis)
@@ -600,7 +991,19 @@ class PID:
         self.second = True
         self.result = 0.0
 
-    def update(self, error, dt):
+    def update(self, error, dt, rate=None):
+        """rate: 【可选】直接用实测角速度当 D 项输入，跳过对误差做差分。
+
+        【2026-09-29 第七步 7(b) 新增】依据见文件头 7(b) 段：
+          实测原 D 输入 (error-error_prev)/dt 与真实机身角速度的 R^2 只有
+          0.046（即 95% 不是角速度），|diff| 最大 122.7 deg/s 而真实转速
+          只有 12.0 deg/s，导致 D 项饱和 11/82 帧。
+          传入实测角速度后饱和降到 0 帧。
+
+        【符号约定】调用方传入的 rate 取【与 (error-error_prev)/dt 同号】的
+          值，即 rate = -omega（因为误差的导数 ≈ -角速度）。这样 p/i/d 的
+          符号逻辑与原来完全一致，不需要改下面的公式。
+        """
         if self.first:
             self.first = False
             self.error_prev = error
@@ -611,8 +1014,13 @@ class PID:
         self.integral += error * dt * self.ki
         self.integral = _clamp(self.integral, self.integral_limit,
                                -self.integral_limit)
-        self.diff = _lerp(self.diff, (error - self.error_prev) / max(1e-9, dt),
-                          1 - self.sd)
+        if rate is not None:
+            # 【真实角速度路径】不再对误差差分（那会引入病态噪声）。
+            #   仍走同一套 sd 平滑，便于将来需要时低通。
+            self.diff = _lerp(self.diff, float(rate), 1 - self.sd)
+        else:
+            self.diff = _lerp(self.diff, (error - self.error_prev) / max(1e-9, dt),
+                              1 - self.sd)
         p = -error * self.kp
         i = -self.integral
         d = -self.diff * self.kd
@@ -696,6 +1104,56 @@ class Logger:
             'vdesc',
             'pid_sat_x', 'pid_sat_z', 'pid_sat_run',
             'nose_n', 'nose_e', 'nose_az', 'tgt_az', 'az_err',
+            # ---- ⑪ 循环分段耗时（2026-09-29 第六步 6(a) 新增）----
+            #   【背景】实飞 gfold_log_20260929_185950 出现 loop_dt 冲到
+            #   1.48~1.60 s（正常 0.18），持续 10 帧（t=5.78~19.31 s）。
+            #   同段 rpc_ms 只有 111~141 ms，即【约 1.35 s 未被任何计时器
+            #   覆盖】。姿态因此失控（tilt_act 冲到 142.7 deg）。
+            #   【为什么必须加】此前只有 rpc_ms 一个计时器，无法判断那
+            #   1.35 s 花在哪。这五段覆盖主循环的可疑部分：
+            #     seg_rpc   = 上一帧结束 到 开始姿态权限采样
+            #     seg_auth  = 姿态权限采样（available_torque /
+            #                 moment_of_inertia / angular_velocity）
+            #     seg_state = self.state()（flight/position/velocity/
+            #                 target_frame/body_rotation_speed/ut）
+            #     seg_ctrl  = track()+apply()（含 PID、限幅）
+            #     seg_draw  = self.draw()（约 41 条线、82 次 RPC 写）
+            #   【判读】哪一段随 loop_dt 一起涨，就是它。若五段之和远小于
+            #   loop_dt，则时间花在段外（如 log.row / 日志累积）。
+            'seg_rpc', 'seg_auth', 'seg_state', 'seg_ctrl', 'seg_draw',
+            # ---- ⑫ 第七步 7(b) 姿态回路改动诊断 ----
+            #   sched   : 增益调度系数（kp = CTRL_X/Z_ROT_KP * sched）
+            #             1.0 = 不调度；范围 [TAU_SCHED_MIN, TAU_SCHED_MAX]
+            #   rate_x/y: 传给 PID 的【真实角速度】(-omega)，替代原来的
+            #             d(err)/dt。核对用：应与 avel_p/y 差一个负号。
+            #   ref_slew: 本帧参考方向的转动速率 [deg/s]（未限速时为实际值）
+            #   ref_clip: 限速是否生效（1=本帧被限）
+            'sched', 'rate_x', 'rate_y', 'ref_slew', 'ref_clip',
+            # ---- ⑬ 第八步 8(a) 参考速率前馈 ----
+            #   ff_x / ff_y : 本帧加进 D 输入的前馈量 [rad/s]（已乘 FF_GAIN
+            #                 并限幅）。判读：
+            #                   · 恒 0  -> FF_ENABLE 关了，或参考没动
+            #                   · 等于 ±FF_CLAMP_RAD -> 被限幅（参考在跳变）
+            #                   · rate_x/y 是【阻尼+前馈】的合成值，
+            #                     故 rate_x != RATE_D_GAIN*avel_p 时差值就是 ff
+            'ff_x', 'ff_y',
+            # ---- ⑭ 第十步 10(a) 竖直保底诊断 ----
+            #   aver_floor : 本帧【实际生效的竖直保底值】[m/s^2]
+            #                = max(0, min(AVER_FLOOR, plan_a_ver, 0.99*g0))
+            #                判读：恒 0 -> AVER_FLOOR_ENABLE 关了或 plan_a_up 缺失
+            #                      等于 AVER_FLOOR(5.0) -> 保底全量生效
+            #                      小于 5.0 -> 被规划封顶（正常，说明规划本身低）
+            #   aver_plan  : 本帧规划自己的 a_ver（u_i[0]），用于核对封顶
+            'aver_floor', 'aver_plan',
+            # ---- ⑮ 第十一步 11(a) 规划质量诊断 ----
+            #   【用途】判定"tilt_cmd 冲到 80 deg"到底是【规划本身要的】
+            #   还是【控制器加上去的】—— 这是用户要求先查清的关键问题。
+            #   plan_pk_tilt : 整条规划的【峰值倾角】[deg]；判据：>25 = 退化解
+            #   plan_tilt_j  : 规划在【当前索引】处的倾角 [deg]（此刻"应该"的角度）
+            #   plan_x0_up   : 求解器收到的初状态高度 h [m]（已减 TARGET_ALT）
+            #   plan_tf_used : 求解器本次实际用的 tf [s]（探测后的值）
+            #   plan_nj      : 轨迹采样序号 j（与 n_i 同源）
+            'plan_pk_tilt', 'plan_tilt_j', 'plan_x0_up', 'plan_tf_used', 'plan_nj',
             'note']
 
     def __init__(self, enabled=True, name=None):
@@ -839,6 +1297,39 @@ class GfoldLander:
         self.dbg_plan_alt = float('nan')
         self.dbg_plan_vz = float('nan')
         self.dbg_plan_vh = float('nan')
+        # ============================================================
+        # 【2026-09-30 第十一步 11(a)：规划质量诊断（用户要求"先加日志
+        #   确定是不是规划问题"）】
+        # ------------------------------------------------------------
+        # 【要回答的问题】求解器返回的那条规划，本身是不是【坏】的？
+        #   触发条件：实测多数趟的 tilt_cmd 冲到 80 deg，而规划峰值倾角
+        #   在【非退化】时只有 5~15 deg。若规划本身就要 72 deg，那就是
+        #   【规划的问题】；若规划只要 8 deg 而控制器做出 80 deg，那是
+        #   【控制器的问题】。这个区分决定下一步改哪儿。
+        #
+        # 【离线已发现】用 cgen 复现 tf=18.25（探测到的【最小可行】tf）：
+        #   peak tilt = 72.09 deg；tf=18.75（+0.5 s）-> 8.38 deg。
+        #   cvxpy 同 tf 给 82.95 deg ⇒ 两条路径都退化，是问题本身的性质。
+        #   但【无法确证飞行真的飞了这条规划】（日志 plan_alt 与复现有
+        #   约 18 m 偏移，原因未查清）。
+        #
+        # 【这些列怎么用】
+        #   plan_pk_tilt : 本次规划的【峰值倾角】= max atan2(|u[1:3]|,u[0])。
+        #                  这是【判据】：>25 deg 基本可断定退化解。
+        #   plan_tilt_j : 规划在【当前索引 j】处的倾角 = 载具此刻【应该】
+        #                  摆到的角度。与 tilt_cmd/tilt_dir_cmd 并列，
+        #                  即可一眼看出"控制器是否在无理由地放大需求"。
+        #   plan_x0_up  : 求解器收到的【初状态高度】(x0_state[0])，即外推后的
+        #                  h（已减 TARGET_ALT）。与 h_min_plan 首帧对比，
+        #                  可判定"规划起点与载具是否对齐"。
+        #   plan_tf_used: 本次规划实际用的 tf（与 tf 列同源，便于核对 replan）。
+        #   plan_nj     : 采样序号 j（与 n_i 同源，便于对齐）。
+        # ============================================================
+        self.dbg_plan_pk_tilt = float('nan')
+        self.dbg_plan_tilt_j = float('nan')
+        self.dbg_plan_x0_up = float('nan')
+        self.dbg_plan_nj = float('nan')
+        self.dbg_plan_tf_used = float('nan')
         self.dbg_trk_pos = float('nan')
         self.dbg_trk_pos_up = float('nan')
         self.dbg_trk_pos_h = float('nan')
@@ -846,6 +1337,12 @@ class GfoldLander:
         # 【2026-09-28 新增】姿态权限与循环时标（见 Logger.COLS ④ 的说明）。
         self.dbg_loop_dt = float('nan')
         self.dbg_rpc_ms = float('nan')
+        # ⑪ 循环分段耗时 [ms]（2026-09-29 第六步 6(a) 定位 1.5 s 卡顿）
+        self.dbg_seg_rpc = float('nan')
+        self.dbg_seg_auth = float('nan')
+        self.dbg_seg_state = float('nan')
+        self.dbg_seg_ctrl = float('nan')
+        self.dbg_seg_draw = float('nan')
         self.dbg_tau_p = float('nan')
         self.dbg_tau_r = float('nan')
         self.dbg_tau_y = float('nan')
@@ -860,6 +1357,21 @@ class GfoldLander:
         self.dbg_pid_err_z = float('nan')
         self.dbg_pid_px = float('nan')
         self.dbg_pid_dx = float('nan')
+        # 7(b)：增益调度系数 + 传入 PID 的真实角速度（供日志核对）
+        self.dbg_sched = float('nan')
+        self.dbg_rate_x = float('nan')
+        self.dbg_rate_y = float('nan')
+        # 8(a) 前馈：参考方向位移状态 + 诊断列
+        self._ff_dir_prev = None
+        self.dbg_ff_x = float('nan')
+        self.dbg_ff_y = float('nan')
+        # 10(a) 竖直保底诊断
+        self.dbg_aver_floor = float('nan')
+        self.dbg_aver_plan = float('nan')
+        # 7(b)-③ 参考斜率限制的状态
+        self._ref_slew_prev = None
+        self.dbg_ref_slew = float('nan')
+        self.dbg_ref_clamped = 0.0
         self.dbg_pid_ix = float('nan')
         self.dbg_pid_out_x = float('nan')
         self.dbg_pid_out_z = float('nan')
@@ -1358,6 +1870,14 @@ class GfoldLander:
         也是 PD 能直接做 `x_i - error` 相减的前提（详见 gfold_p3p4.py 说明）。
         """
         a_net = self.a_cap_real(mass) - 9.80665
+        # 【第十一步 11(a)】记录求解器【实际收到的】初状态高度（= h，已减
+        #   TARGET_ALT）。它与 track() 里第一帧的 h_min_plan 对比，即可判定
+        #   "规划起点与载具是否对齐" —— 这是查清 plan_alt 偏移之谜的钥匙。
+        #   同时记录本次求解用的 tf（求解器内部探测后的值）。
+        try:
+            self.dbg_plan_x0_up = float(x0_state[0])
+        except Exception:                            # noqa: BLE001
+            self.dbg_plan_x0_up = float('nan')
         alt = float(x0_state[0]) + TARGET_ALT
         dist = math.hypot(float(x0_state[1]), float(x0_state[2]))
         vz = float(x0_state[3])
@@ -1400,6 +1920,13 @@ class GfoldLander:
             term_vz=V_DESCENT_TERM_VZ)
         self.solve_ms = (time.time() - t0) * 1000.0
         self.gfold_status = r.get('status', 'err')
+        # 【第十一步 11(a)】记录求解器【返回的】tf（探测后的实际值）。
+        #   与日志 tf 列、以及 x0_up 一起，可完整重建"求解器看到了什么、
+        #   选了哪条规划"。这是判定退化规划是否被采纳的直接证据。
+        try:
+            self.dbg_plan_tf_used = float(r.get('tf', float('nan')))
+        except Exception:                            # noqa: BLE001
+            self.dbg_plan_tf_used = float('nan')
         # 【第二步】记录本次规划用的下降率包络上限（供 vdesc 日志列）
         self.dbg_vdesc = float(V_DESCENT_MAX_ENABLE) if V_DESCENT_MAX_ENABLE \
             else float('nan')
@@ -1632,9 +2159,11 @@ class GfoldLander:
         #   【不能传 error[0]】那是【相对瞄准点】的高度，下降全程都是大正数
         #   （实测交班点 650 m），若拿它当判据会【全程放开下限】，
         #   等于把姿态权限彻底丢掉 —— 与改动目的相反。
+        # 5(a)：同时传入规划的推力幅值 |u_i|，依据见函数文档
         min_mag = self._gfold_floor_effective(a_cap, self.v.mass,
                                               float(u_i[0]),
-                                              float(error[0]) - float(x_i[0]))
+                                              float(error[0]) - float(x_i[0]),
+                                              float(np.linalg.norm(u_i)))
         # 供 apply() 写 atq_floor 诊断列（必须与本次限幅用的是同一个值）
         self.min_mag_eff = float(min_mag)
         max_mag = 1.00 * a_cap
@@ -1694,10 +2223,48 @@ class GfoldLander:
                       % PCS_END_DEG)
         # 【3(a)】把【条件下限】显式传进去 —— conic_clamp 默认会自己重算
         #   一个无条件下限，那样 3(a) 会被静默推翻（见该函数的注释）。
+        # ============================================================
+        # 【2026-09-29 第四步 4(b)：把"下限到底有没有起作用"记成【可用指标】】
+        # ------------------------------------------------------------
+        # 【原 atq_floor 列的缺陷】它的判据是
+        #     dbg_atq_floor = 1.0 if abs(throttle - thr_floor_last) < 1e-6 else 0.0
+        #   即"实际油门 == 下限" => 判为被下限钉住。
+        #   这在【下限被放开到 0】时会失真：当指令本身就是 0 时，
+        #   throttle 也等于 0(下限) => 被误报为"被下限钉住"。
+        #   实测 173800：36 个【指令全零】的帧，atq_floor 全是 1.0，
+        #   而真相是【下限已放开、指令自己变成 0】—— 这一列把
+        #   "被下限托着"与"指令就是零"混为一谈，把排查引向了错误方向。
+        #
+        # 【修法】改成两个各自无歧义的量：
+        #   atq_floor : "本帧【下限是否真的抬高了竖直分量】"
+        #               = (夹限后的 a_ver) - (夹限前的 a_ver) > tol
+        #               这才是"下限在起作用"的定义，与油门值无关。
+        #   *_raw     保留：夹限【前】的竖直分量（便于离线看 PD 原始意图）
+        # ============================================================
+        _raw_ver = float(target_a[0])
+        # 【第十步 10(a)】把规划本帧的 a_ver（u_i[0]）传进去，供 conic_clamp
+        #   给竖直保底【封顶】—— 保底值取 min(AVER_FLOOR, u_i[0])，
+        #   保证永不超过规划（理由与实测见 AVER_FLOOR 处的长注释）。
+        _plan_a_up = float(u_i[0]) if u_i is not None else None
+        # 诊断列：把本帧"实际生效的竖直保底值"和"规划自己的 a_ver"落日志
+        #   （与 conic_clamp 内的算法逐字一致，便于核对封顶是否正确）
+        if (AVER_FLOOR_ENABLE and _plan_a_up is not None
+                and _plan_a_up == _plan_a_up):
+            _fe = max(0.0, min(float(AVER_FLOOR), float(_plan_a_up), G0 * 0.99))
+        else:
+            _fe = 0.0
+        self.dbg_aver_floor = float(_fe)
+        self.dbg_aver_plan = (float(_plan_a_up)
+                              if _plan_a_up is not None else float('nan'))
         target_a = self.conic_clamp(target_a, min_mag, max_mag, tilt_now,
-                                    min_mag_override=min_mag)
+                                    min_mag_override=min_mag,
+                                    plan_a_up=_plan_a_up)
         target_a_ = self.conic_clamp(target_a_, min_mag, max_mag, tilt_now,
-                                     min_mag_override=min_mag)
+                                     min_mag_override=min_mag,
+                                     plan_a_up=_plan_a_up)
+        self.dbg_a_ver_raw = _raw_ver
+        self.dbg_floor_lift = float(target_a[0]) - _raw_ver
+        self.dbg_a_ver_out = float(target_a[0])
 
         # 【参考仓库 line 391-392 的降级分支】
         #   原版判据是 `if n_i < 0`（n_i 允许为负）。本实现把 n_i 夹到了
@@ -1726,6 +2293,36 @@ class GfoldLander:
             target_a_ = _deg
 
         self.target_direction = target_a_ / max(1e-09, float(np.linalg.norm(target_a_)))
+        # ============================================================
+        # 【2026-09-29 第六步 6(b)：姿态指令硬限幅】
+        #   放在【归一化之后、交给 apply() 之前】——这是姿态的最终设定值。
+        #   只改【方向】，不改 target_a（节流向量）的幅值，
+        #   所以【推力大小与规划一致】，只是不再要求机头指到 30 deg 以外。
+        #   依据与取值见 MAX_TILT_CMD_DEG 处。
+        # ============================================================
+        self.target_direction = limit_tilt_dir(self.target_direction,
+                                               MAX_TILT_CMD_DEG)
+        # ============================================================
+        # 【2026-09-29 第七步 7(b)-③：参考方向的斜率限制（治本项）】
+        # ------------------------------------------------------------
+        # 【为什么必须做】实测（195847）：
+        #   · |d(tilt_dir_cmd)/dt| 最大 78.2 deg/s，且【全部出现在限幅边界】
+        #     —— 硬限幅 min(raw,30) 在穿越处把斜率突变为 0，产生拐点；
+        #     D 项 (d(err)/dt = d(ref)/dt - omega) 直接吃到这个拐点。
+        #   · 载具能提供的最大转速：alpha_min=4.4 deg/s^2 时转 20 deg
+        #     只能到 sqrt(2*alpha*delta) ≈ 13 deg/s。
+        #   ⇒ 参考要求的 78 deg/s 是载具能力的 6 倍，【任何增益都追不上】。
+        #   实测饱和：out_z 41/85 帧(48%)、out_x 11/85 帧(13%)。
+        #   仿真同一参考：不限速过冲 22.2 deg / 饱和 97%；
+        #   限到 25 deg/s -> 过冲 6.9 deg / 饱和 3%。这是最大的单一改善。
+        #
+        # 【限到什么】由【本帧权限】决定，而不是拍一个常数：
+        #      slew_max = sqrt(2 * alpha * headroom)     [rad/s]
+        #   物理含义：从静止加速到 slew_max、再以同样减速度停住，总角行程
+        #   正好 = headroom。按此限速，参考永远停在"能起步也能停住"的范围。
+        #   alpha 小（油门低）时自动收紧。上下限见 REF_SLEW_MIN/MAX。
+        # ============================================================
+        self.target_direction = self._limit_ref_slew(self.target_direction)
         self.a_cmd_vec = target_a
         self.tilt_cmd = math.degrees(math.atan2(
             float(np.linalg.norm(target_a[1:3])), max(1e-09, float(target_a[0]))))
@@ -1741,6 +2338,34 @@ class GfoldLander:
         self.dbg_plan_alt = float(x_i[0]) + TARGET_ALT
         self.dbg_plan_vz = float(v_i[0])
         self.dbg_plan_vh = float(np.linalg.norm(v_i[1:3]))
+        # 【第十一步 11(a)】规划质量诊断（判据与用法见 __init__ 的长注释）
+        #   plan_tilt_j : 规划【此刻该摆的倾角】= atan2(|u_i[1:3]|, u_i[0])
+        #     这就是"参考轨迹本身的角度需求"，与 tilt_cmd（含 PD 修正）
+        #     并列即可分离"规划要的"和"控制器加的"。
+        #   【Pylance 说明】u_i 由 sample_index 返回，静态分析可能推断为
+        #   Optional，故先判 None 再用（下方 _u_a 的类型因此确定）。
+        _u_a = np.asarray(u_i, float) if u_i is not None else None
+        if _u_a is not None and _u_a.size >= 3:
+            _u0 = float(_u_a[0])
+            _uh = float(np.linalg.norm(_u_a[1:3]))
+            self.dbg_plan_tilt_j = (math.degrees(math.atan2(_uh, max(1e-09, _u0)))
+                                    if abs(_u0) > 1e-09 else 90.0)
+        else:
+            self.dbg_plan_tilt_j = float('nan')
+        #   plan_pk_tilt : 整条规划的峰值倾角（判据：>25 deg = 退化解）
+        try:
+            _U = np.asarray(self.plan['u'], float) if self.plan is not None else None
+            if _U is not None and _U.ndim == 2 and _U.shape[1] > 1:
+                _tws = np.degrees(np.arctan2(
+                    np.linalg.norm(_U[1:3, :], axis=0),
+                    np.maximum(1e-09, np.abs(_U[0, :]))))
+                self.dbg_plan_pk_tilt = float(np.max(_tws))
+            else:
+                self.dbg_plan_pk_tilt = float('nan')
+        except Exception:                            # noqa: BLE001
+            self.dbg_plan_pk_tilt = float('nan')
+        #   plan_nj : 采样序号（与 n_i 同源）
+        self.dbg_plan_nj = float(self.gfold_n_i)
         self.dbg_trk_pos = float(np.linalg.norm(_dpos))
         self.dbg_trk_pos_up = float(_dpos[0])
         self.dbg_trk_pos_h = float(np.linalg.norm(_dpos[1:3]))
@@ -1870,6 +2495,119 @@ class GfoldLander:
         except Exception:                            # noqa: BLE001
             pass
 
+    def _limit_ref_slew(self, want_dir):
+        """【2026-09-29 第七步 7(b)-③】把【姿态参考方向】的转动速率限到
+        本帧权限允许的范围内，输出连续、不产生拐点。
+
+        ====================================================================
+        【与 6(b) 硬限幅的关系】
+          6(b) 的 limit_tilt_dir 是【幅度限幅】：把倾角夹到 <=30 deg。
+             它的副作用：min(raw,30) 在穿越处【斜率突变】，实测
+             |d(tilt_dir_cmd)/dt| 最大 78.2 deg/s 全部来自这些边界。
+          本函数是【速率限幅】：在保持方向连续的前提下，把每秒转过的角度
+             限制到载具真能跟上的水平。两者【串联使用】：先夹幅度、再限速率。
+
+        【限速上限怎么算】
+            slew_max = sqrt(2 * alpha * headroom)      [rad/s]
+          alpha    = dbg_alpha_max（本帧实测可用角加速度，随油门变化）
+          headroom = REF_SLEW_HEADROOM_DEG（允许的角行程，度）
+          物理意义：从静止加速到 slew_max 再以同样减速度停住，总角行程正好
+          = headroom。因此按此限速，参考【永远停在能力之内】。
+
+        【实现】把 want_dir 的方向用球面插值往 current 方向回拉：
+          不足则原样返回（不干预）；超出则沿大圆方向只走 slew_max*dt。
+          这样输出【始终是单位向量】，且斜率有界 => 无拐点 => D 项干净。
+        ====================================================================
+        """
+        if not REF_SLEW_ENABLE:
+            return want_dir
+        try:
+            _w = np.asarray(want_dir, dtype=float)
+            _n = float(np.linalg.norm(_w))
+            if not (_n > 1e-9):
+                return want_dir
+            _w = _w / _n
+            _prev = getattr(self, '_ref_slew_prev', None)
+            if _prev is None:
+                self._ref_slew_prev = _w.copy()
+                return _w
+            _dt = float(getattr(self, 'last_pkt', 0.0))
+            if not (_dt > 1e-9):
+                self._ref_slew_prev = _w.copy()
+                return _w
+            # 本帧权限 -> 允许的最大角速率 [rad/s]
+            #   allowed = sqrt(2*alpha*headroom)   [headroom 用角度]
+            _a = math.radians(float(getattr(self, 'dbg_alpha_max', 0.0) or 0.0))
+            _head = math.radians(REF_SLEW_HEADROOM_DEG)
+            if _a > 1e-9:
+                _slew_deg = math.degrees(math.sqrt(2.0 * _a * _head))
+            else:
+                _slew_deg = REF_SLEW_MIN
+            # 上下限：低油门端不至于冻结、高油门端不至于过快
+            _slew_deg = max(REF_SLEW_MIN, min(REF_SLEW_MAX, _slew_deg))
+            _slew = math.radians(_slew_deg)
+            _ang = math.acos(max(-1.0, min(1.0, float(np.dot(_prev, _w)))))
+            _step = _slew * _dt
+            if _ang <= _step or _ang < 1e-9:
+                self._ref_slew_prev = _w.copy()
+                self.dbg_ref_slew = math.degrees(_ang) / _dt
+                return _w
+            # 沿大圆插值到只走 _step 的位置
+            _t = _step / _ang
+            _out = _prev + _t * (_w - _prev)
+            _on = float(np.linalg.norm(_out))
+            _out = _out / _on if _on > 1e-9 else _prev.copy()
+            self._ref_slew_prev = _out.copy()
+            self.dbg_ref_slew = math.degrees(_step) / _dt
+            self.dbg_ref_clamped = 1.0
+            return _out
+        except Exception:                            # noqa: BLE001
+            return want_dir
+
+    def _att_sched_factor(self):
+        """【2026-09-29 第七步 7(b)】增益调度系数（用户要求"PID 随油门变化"）。
+
+        ====================================================================
+        【为什么按 alpha 调度而不是按油门】
+        用户观察：载具惯量大、姿态能力与油门强相关。实测证实——
+            alpha_max（=tau/I，含油门效应）与油门的 pearson r = 0.818，
+            变化范围 4.44 ~ 35.37 deg/s^2，即 8.0 倍。
+        二阶姿态模型：e'' = -alpha*(kp*e + kd*e')
+            wn   = sqrt(alpha*kp)
+            zeta = (kd/2)*sqrt(alpha/kp)
+        kp 固定 2.0 时：zeta 在 0.246(低油门) ~ 0.694(高油门) 之间摆 2.8 倍。
+        低油门端 zeta<0.3 严重欠阻尼 => 这正是"低油门时过冲"的根源。
+
+        【调度律】令 kp 正比于 alpha：
+            kp = kp0 * (alpha / alpha_ref)
+        则 alpha/kp = alpha_ref/kp0 = 常数
+            => zeta = (kd/2)*sqrt(alpha_ref/kp0) 【与 alpha 无关】
+        即 zeta 成为常数，这正是"防止过冲随油门变化"想要的。
+
+        【为什么用 sqrt(alpha/alpha_ref) 而不是线性】用【实测】决定，见文件头：
+          线性调度会让 kp 在低油门端掉到很小、高油门端涨到 16（远超饱和阈值
+          1/|e|max=3.0）。折中用平方根：变化范围从 8 倍压到 sqrt(8)=2.8 倍，
+          两头都不极端。且 zeta ∝ sqrt(alpha/kp) 下用平方根调度得到
+          zeta ∝ (alpha)^(1/4)，仍单调改善低油门端的阻尼。
+
+        【上下限】TAU_SCHED_MIN/MAX 防止 alpha 异常（首帧、采样失败）时
+          kp 变成 0 或爆掉。默认 1.0 即"不调度"。
+        ====================================================================
+        """
+        if not TAU_SCHED_ENABLE:
+            return 1.0
+        try:
+            a_now = float(getattr(self, 'dbg_alpha_max', float('nan')))
+            if not (a_now == a_now) or a_now <= 1e-9:
+                return 1.0
+            # 参考权限：用本载具在本段油门的典型值。取 20 deg/s^2 为基准
+            #   （实测中位 ~18.2，见 7(b) 段的统计），使系数在低油门端 <1、
+            #   高油门端 >1，范围被 TAU_SCHED_MIN/MAX 夹住。
+            _fac = math.sqrt(a_now / 20.0)
+            return float(max(TAU_SCHED_MIN, min(TAU_SCHED_MAX, _fac)))
+        except Exception:                            # noqa: BLE001
+            return 1.0
+
     def a_cap_real(self, mass=None):
         """【真实可用推力加速度】= available_thrust / mass [m/s^2]。
 
@@ -1970,7 +2708,8 @@ class GfoldLander:
         floor = min(GFOLD_THROTTLE_MIN, GFOLD_THROTTLE_MARGIN * _hover)
         return floor * a_cap
 
-    def _gfold_floor_effective(self, a_cap, mass, plan_a_up, err_up):
+    def _gfold_floor_effective(self, a_cap, mass, plan_a_up, err_up,
+                               plan_mag=None):
         """【2026-09-29 第三步改动 3(a)】按"是否要下降"放开油门下限。
 
         ====================================================================
@@ -2009,7 +2748,7 @@ class GfoldLander:
             plan_a_up - G0
                    = 规划本帧的净竖直加速度（推力竖直分量 - 重力）
           若载具【已经落后于规划】(err_up > 0) 或【规划本身要求净向下加速】
-          (plan_a_up - G0 < 0)，则放开下限到 0，让 a_ver 由规划与 PD 决定。
+          (plan_a_up - G0 < 0)，则【降低】下限，让 a_ver 由规划与 PD 决定。
           否则（巡航/需要姿态权限）保留原下限。
 
         【口径陷阱（第一版写错过，实测暴露）】err_up 必须是【相对规划点】，
@@ -2021,19 +2760,71 @@ class GfoldLander:
           自由落体、无姿态权限"那个老故障（见 GFOLD_THROTTLE_MIN 的长注释）。
           保留"该有时有、该无时无"是两边都不牺牲的做法。
 
+        ================================================================
+        【2026-09-29 第四步 4(a)：放开时【放一个非零小值】，不能放到 0】
+        ----------------------------------------------------------------
+        【事故】第一版放开到 0，直接制造了一个【零值陷阱】。实飞
+          gfold_log_20260929_173800.csv：36/70 帧 thr_cmd == 0.000，
+          持续 7.21 s（帧 7..42），期间 a_cmd_up = a_cmd_h = 0.000，
+          载具从 597.5 m 纯自由落体到 305.7 m、vz 从 -48 掉到 -69。
+        【根因】conic_clamp 用 a_ver = max(a_ver_min, ...) 给竖直分量托底，
+          而 a_ver_min 由 min_mag 算出。min_mag = 0 => a_ver_min = 0 =>
+          【负的竖直指令不再被托底】，直接返回 [0,0,0]。
+          用真实的 conic_clamp 实测（a_cap=81.71）：
+              a_ver=-0.73 a_hor=5.0  min_mag=0.0   -> [0.00,0.00] 推力 0.0000
+              a_ver=-0.73 a_hor=5.0  min_mag=5.70  -> [5.70,0.10] 推力 0.0698
+        【这是个自锁】载具下降比规划慢 => PD 速度项把竖直指令压负
+          => 下限已放开 => 全零 => 下降更快 => 下一帧更负 => 越陷越深。
+          用该趟 70 帧复算：raw_a_ver 有 31 帧为负。
+        【修法（第四步 4(a)】先改成返回 GFOLD_THROTTLE_RELEASE*a_cap（=0.05），
+          它修好了零推力陷阱（实飞 181402 全零帧 0 个），
+          但实测发现它只是把天花板降低了（见下方 5(a)）。
+        ================================================================
+        【第五步 5(a)：放开值必须【不超过规划自己的推力】】
+        ----------------------------------------------------------------
+        实飞 gfold_log_20260929_181402.csv（4(a) 把放开值从 0 改成 0.05）：
+            zero-throttle frames : 0        <- 零推力陷阱确实修好了
+            但 frames 4..45 的 thr_cmd 恒等于 0.050（42 帧 / 7.5 s）
+        用该趟日志与它自己的规划逐帧对照：
+            node   plan |u|   占 a_cap
+             0      5.73      0.070
+            20      5.76      0.070
+            30      8.36      0.102
+            45     12.19      0.149
+        而 a_cap≈81.7 时 0.05·a_cap = 4.09 m/s²
+            => 62/67 帧的【输出幅值等于下限】
+        ⇒ 下限【仍然是绑定约束】，只不过从 9.41 降到 4.09 m/s²。
+
+        【正确判据】放开时取【两者较小】：
+            floor_released = min(GFOLD_THROTTLE_RELEASE * a_cap, 1.02 * |u_plan|)
+        · 上界 1.02·|u_plan| —— 保证下限【永不超过规划要的推力】，
+          即"跟轨迹"这个意图再也不会被下限推翻（这才是第三步的本意）。
+          取 1.02 而不是 1.00：给离散化/浮点留 2% 余量。
+        · 自动 > 0：规划 |u| 是推力幅值、恒 > 0，故 1.02·|u_plan| > 0
+          ⇒ 【自动满足"不能放到 0"】，比 4(a) 的固定小值更可靠。
+        · 仍保留 GFOLD_THROTTLE_RELEASE 作【兜底上界】。
+        ================================================================
+
         【参数】
           a_cap     : 本帧可用加速度（= a_cap_real）
           mass      : 本帧质量
           plan_a_up : 规划在当前节点的竖直推力分量 u_i[0]
-          err_up    : 本机相对瞄准点的高度偏差 error[0]
-        【返回】下限对应的加速度幅值 [m/s²]（0 表示不设下限）
+          err_up    : 本机相对【规划点】的高度偏差（error[0] - x_i[0]）
+          plan_mag  : 规划在当前节点的推力幅值 |u_i|
+                      （None 时退回 4(a) 的固定比例行为）
+        【返回】下限对应的加速度幅值 [m/s²]（恒 > 0）
         """
         base = self._gfold_floor(a_cap, mass)
         # 规划本帧的净竖直加速度（推力竖直分量 - 重力）
         net_up = float(plan_a_up) - G0
-        # 载具偏高（落后于规划）或规划要求向下加速 => 放开下限
+        # 载具落后于规划、或规划要求净向下加速 => 降低下限
         if float(err_up) > 0.0 or net_up < 0.0:
-            return 0.0
+            cap_by_release = GFOLD_THROTTLE_RELEASE * float(a_cap)
+            if plan_mag is None or not (float(plan_mag) > 0.0):
+                # 拿不到规划幅值（旧调用点 / 诊断脚本）=> 退回 4(a) 行为
+                return cap_by_release
+            # 5(a)：下限不得超过规划自己的推力（×1.02 数值余量）
+            return min(cap_by_release, 1.02 * float(plan_mag))
         return base
 
     def _solver_cone_deg(self, index, N):
@@ -2063,7 +2854,7 @@ class GfoldLander:
         return float(PCS_START_DEG + (PCS_END_DEG - PCS_START_DEG) * frac)
 
     def conic_clamp(self, target_a, min_mag, max_mag, tilt_deg=None,
-                    min_mag_override=None):
+                    min_mag_override=None, plan_a_up=None):
         """把推力加速度指令限幅到推力锥内。
 
         【逐行照抄参考仓库】dev/gfold/demo3_gfold.py 的 conic_clamp()
@@ -2120,14 +2911,31 @@ class GfoldLander:
         max_tilt = math.radians(CONIC_TILT_DEG if tilt_deg is None else tilt_deg)
         a_hor = float(np.linalg.norm(target_a[1:3]))
         a_ver = float(target_a[0])
+        # ============================================================
+        # 【第十步 10(a)】竖直保底：与锥角解耦，并用规划自身封顶
+        #   原式 a_ver_min = cos(cone)*min_mag 在 cone=85 deg 时只剩 0.087 倍，
+        #   等于没有保护（实测 a_up 塌到 0.46）。这里加一个【与锥角无关】的
+        #   保底值，且【绝不超过规划自己的 a_ver】—— 理由见常量处：
+        #     · 不能 >= g0        ：否则净竖直 >= 0，载具永不落地（反推约束）
+        #     · 不能 > plan_a_ver ：否则推翻规划
+        #   plan_a_up 为 None 时（旧调用点/诊断脚本）跳过保底，语义不变。
+        # ============================================================
+        _floor_extra = 0.0
+        if (AVER_FLOOR_ENABLE and plan_a_up is not None
+                and float(plan_a_up) == float(plan_a_up)):
+            _cap = min(float(AVER_FLOOR), float(plan_a_up))
+            _cap = min(_cap, G0 * 0.99)        # 硬约束：必须 < g0
+            _floor_extra = max(0.0, _cap)
         if a_hor < 1e-09:
             # 纯竖直指令：直接把竖直分量夹到 [min_mag, max_mag]
-            return np.array([max(min(a_ver, max_mag), min_mag), 0.0, 0.0])
+            return np.array([max(min(a_ver, max_mag), min_mag, _floor_extra),
+                             0.0, 0.0])
         hor_dir = np.array([0.0, float(target_a[1]), float(target_a[2])]) / a_hor
         if a_hor < min_mag * math.sin(max_tilt):
             a_ver_min = math.sqrt(max(0.0, min_mag ** 2 - a_hor ** 2))
         else:
             a_ver_min = math.cos(max_tilt) * min_mag
+        a_ver_min = max(a_ver_min, _floor_extra)
         if a_hor < max_mag * math.sin(max_tilt):
             a_ver_max = math.sqrt(max(0.0, max_mag ** 2 - a_hor ** 2))
         else:
@@ -2190,7 +2998,10 @@ class GfoldLander:
 
         # ---- 姿态（原版 line 461-477）----
         if target_direction is None:
-            target_direction = target_a / max(1e-9, mag)
+            # 【2026-09-29 第六步 6(b)】兜底路径也要限幅，否则一旦调用方
+            #   忘记传方向，限幅就被绕过。依据见 MAX_TILT_CMD_DEG。
+            target_direction = limit_tilt_dir(target_a / max(1e-9, mag),
+                                              MAX_TILT_CMD_DEG)
         try:
             # 机体系 <- 地面系 的旋转（原版 line 348-349）
             q = self.v.rotation(self.v.surface_reference_frame)
@@ -2228,13 +3039,123 @@ class GfoldLander:
                 tgt_local, np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0]))
             err_z = _angle_around_axis(
                 tgt_local, np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0]))
-            out_x = self.ctrl_x_rot.update(err_x, game_dt)
+            # ============================================================
+            # 【2026-09-29 第七步 7(b)：姿态三项改动（依据见文件头 7(b) 段）】
+            # ------------------------------------------------------------
+            # ① 增益随权限调度：kp 正比于 alpha_max，使 zeta 与油门无关。
+            #    实测 alpha_max 随油门变化 8 倍，kp 固定时 zeta 摆 2.8 倍。
+            # ② D 项改用【实测机身角速度】。实测原 D 输入与角速度的 R^2 仅
+            #    0.046（即 95% 是噪声/病态量），换成角速度后饱和帧 11 -> 0。
+            # ③ 参考倾角做斜率限制（在 track() 里实现，这里只消费其结果）。
+            #    u = kp*e + kd*d(e)/dt 在 e=ref-theta 时【已含前馈】
+            #    (+kd*dref/dt) 与阻尼 (-kd*omega)，故无需另加前馈项。
+            # ============================================================
+            _a_sched = self._att_sched_factor()
+            _kp_x = CTRL_X_ROT_KP * _a_sched
+            _kp_z = CTRL_Z_ROT_KP * _a_sched
+            self.ctrl_x_rot.kp = _kp_x
+            self.ctrl_z_rot.kp = _kp_z
+            self.dbg_sched = float(_a_sched)
+
+            # 【D 项改用真实角速度】avel_local[0]=俯仰, [2]=偏航 [rad/s]。
+            # ============================================================
+            # 【2026-09-29 第七步 7(b)-② 符号修正 —— 我第一版写反了】
+            # ------------------------------------------------------------
+            # 【事故】第一版写的是 rate = -omega。实飞
+            #   gfold_log_20260929_212056.csv 证明它把 D 项变成了【正反馈】：
+            #     avel_p 从 12 deg/s 冲到 205 deg/s，avel_y 冲到 175 deg/s，
+            #     tilt_act 148.3 deg，27 帧 >90 deg，落地 vz=-92.2 vh=67.4，
+            #     落点偏差 428.6 m。比改动前严重得多。
+            #
+            # 【为什么写反了】我以为 d(err)/dt = d(ref)/dt - omega，所以
+            #   "与 d(err)/dt 同号"应取 -omega。但【实测】稳定那趟
+            #   （gfold_log_20260929_195847.csv）的回归是：
+            #       ch x : d(err_x)/dt = +0.782 * avel_p   (corr +0.215)
+            #       ch z : d(err_z)/dt = +0.724 * avel_y   (corr +0.447)
+            #   即【实测符号是 +omega，不是 -omega】。
+            #   该符号关系在 212056 那趟更是精确到 -1.000（因为那一趟就是
+            #   用 -avel 直接喂进去的，diff = -avel_p，回归自然得到 -1）。
+            #
+            # 【被控对象符号（212056 实测）】out_x 长时间饱和时的角加速度：
+            #     out_x = +1.00 持续 12 帧 -> d(avel_p)/dt = -0.309 rad/s^2
+            #     out_x = -1.00 持续 47 帧 -> d(avel_p)/dt = +0.888 rad/s^2
+            #   => d(avel_p)/dt = -A*u  (A>0)，即正指令使角速度【变负】。
+            #
+            # 【因此正确的阻尼项】applied = err*kp + diff*kd。
+            #   要阻尼就必须让 diff 对 avel 的系数为正：
+            #       avel>0 -> 需要 d(avel)/dt<0 -> 需要 u>0 -> 需要 +avel 项
+            #       avel<0 -> 需要 d(avel)/dt>0 -> 需要 u<0 -> 同样 +avel 项
+            #   => diff = +avel。第一版取 -avel 恰好是【反阻尼】。
+            #
+            # 【与旧律的一致性核对】旧律 diff=d(err)/dt 的实测等效系数是
+            #   +0.782（ch x），故旧律等效阻尼增益 = kd*0.782 = 1.955，
+            #   而本改动给出 kd*1.0 = 2.500 —— 【同号、略强】。
+            #   这解释了为什么旧律是稳定的、而我的 -avel 立刻发散。
+            # ============================================================
+            if RATE_D_ENABLE:
+                _rate_x = float(avel_local[0]) * RATE_D_GAIN
+                _rate_y = float(avel_local[2]) * RATE_D_GAIN
+            else:
+                # 回退到旧律：对误差做差分（PID.update 内部自行计算）
+                _rate_x = None
+                _rate_y = None
+
+            # ============================================================
+            # 【8(a) 参考方向速率前馈】
+            #   把"参考自己在这一帧动了多少"折算成误差的变化率，
+            #   再【加】到 D 输入上 —— 这正是旧律 d(err)/dt 里被删掉的那部分。
+            #   符号不靠推理：用同一个 _angle_around_axis 对参考做扰动得到。
+            # ============================================================
+            _ff_x = 0.0
+            _ff_y = 0.0
+            if FF_ENABLE and _rate_x is not None and game_dt > 1e-9:
+                try:
+                    _wprev = getattr(self, '_ff_dir_prev', None)
+                    _wnow = np.array(target_direction, dtype=float)
+                    if _wprev is not None:
+                        # 参考方向在本帧的位移（地面/目标系）
+                        _dw = (_wnow - _wprev) / float(game_dt)
+                        # 转到机体系（与 err 同坐标系）
+                        _dw_local = _transform(_dw, rot_s2l)
+                        # 让"参考动一点、机身不动"，用同一个函数算新误差
+                        _pert = _normalize(tgt_local + _dw_local * float(game_dt))
+                        _ex2 = _angle_around_axis(
+                            _pert, np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0]))
+                        _ey2 = _angle_around_axis(
+                            _pert, np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0]))
+                        # 参考对误差的贡献率 [rad/s]
+                        _ff_x = (_ex2 - err_x) / float(game_dt) * FF_GAIN
+                        _ff_y = (_ey2 - err_z) / float(game_dt) * FF_GAIN
+                        # 限幅：前馈只做"提前量"，不夺走全部控制权限
+                        _cl = FF_CLAMP_RAD
+                        _ff_x = max(-_cl, min(_cl, _ff_x))
+                        _ff_y = max(-_cl, min(_cl, _ff_y))
+                    self._ff_dir_prev = _wnow.copy()
+                except Exception:                    # noqa: BLE001
+                    _ff_x = 0.0
+                    _ff_y = 0.0
+            self.dbg_ff_x = _ff_x
+            self.dbg_ff_y = _ff_y
+            # 【类型说明（修 Pylance reportOptionalOperand）】
+            #   _rate_x/_rate_y 的类型是 float|None（RATE_D_ENABLE=False 时为
+            #   None，表示回退到旧律、由 PID.update 自己差分）。
+            #   这里两个都要判非 None 才能相加：pyright 只会对
+            #   【被判断过的那个变量】做类型收窄，所以必须两个都写进去，
+            #   否则 _rate_y 仍被当成 Optional 而报错（实测正是这一条）。
+            if _rate_x is not None and _rate_y is not None:
+                _rate_x = _rate_x + _ff_x
+                _rate_y = _rate_y + _ff_y
+            self.dbg_rate_x = _rate_x
+            self.dbg_rate_y = _rate_y
+
+            out_x = self.ctrl_x_rot.update(err_x, game_dt, rate=_rate_x)
+            out_z = self.ctrl_z_rot.update(err_z, game_dt, rate=_rate_y)
+
             # 记录 p/i/d 分解（PID.update 里 result = p+i+d，已带符号）
-            self.dbg_pid_px = float(-err_x * CTRL_X_ROT_KP)
+            self.dbg_pid_px = float(-err_x * _kp_x)
             self.dbg_pid_dx = float(-self.ctrl_x_rot.diff * CTRL_X_ROT_KD)
             self.dbg_pid_ix = float(-self.ctrl_x_rot.integral)
             cp_ = -_clamp(out_x, 1, -1)
-            out_z = self.ctrl_z_rot.update(err_z, game_dt)
             cy_ = -_clamp(out_z, 1, -1)
             # ============================================================
             # 【2026-09-28 新增：俯仰/偏航的【机身角速度阻尼】】
@@ -2348,9 +3269,31 @@ class GfoldLander:
                 #   而 PID 增益是常数。过去两列分开记录，无法判断
                 #   "权限低"到底是不是"油门低"造成的。
                 self.dbg_atq_thr = float(throttle)
-                self.dbg_atq_floor = (
-                    1.0 if abs(float(throttle) - self.thr_floor_last) < 1e-6
-                    else 0.0)
+                # 【2026-09-29 第四步 4(b)：判据改为"下限是否真的抬高了竖直分量"】
+                #   【旧判据的两个毛病】（实测 173800）
+                #     ① 下限放开到 0 时，若指令本身也是 0，则
+                #        throttle == floor == 0 => 误报"被下限钉住"。
+                #        该趟 36 个指令全零帧的 atq_floor 全是 1.0。
+                #     ② 它比的是【油门】，而下限作用在【加速度】上
+                #        （a_ver = max(a_ver_min, ...)），两者之间还隔着
+                #        a_cap 与方向分摊，本来就不是同一个量纲。
+                #   新判据直接量"夹限把竖直分量抬高了多少"：
+                #        floor_lift = a_ver_after - a_ver_before  (>0 即被抬高)
+                #   注意用【很小的容差】判 >0：a_ver_min 是 sqrt(...) 算出来的，
+                #   与浮点比较要用 1e-9 而不是 == 0。
+                #
+                # 【必须再要求输出非零 —— 否则判据仍会误报】
+                #   只用 lift>0 是不够的：当下限=0 且 raw_a_ver<0 时，
+                #   a_ver 被从 -1.25 "抬"到 0.0，lift=1.25>0 —— 但它其实
+                #   【什么也没做】（输出仍是零推力）。实测这个反例：
+                #       release=0.00（旧 bug）: lift 判据报 35 帧"生效"，
+                #         而这 35 帧里 30 帧的输出是 0（纯自由落体）
+                #       release=0.05（修复后）: 报 42 帧"生效"，输出全部 >0
+                #   ⇒ 加上 a_ver_out > 0 之后，前者归 0、后者保持 42，
+                #     判据才真正反映"下限在托着载具"。
+                _lift = float(getattr(self, 'dbg_floor_lift', 0.0) or 0.0)
+                _outv = float(getattr(self, 'dbg_a_ver_out', 0.0) or 0.0)
+                self.dbg_atq_floor = 1.0 if (_lift > 1e-9 and _outv > 1e-9) else 0.0
                 # --- 候选 2：两轴饱和（大倾角下俯仰/偏航可能不再解耦）---
                 _sx = 1.0 if abs(float(cp_)) > 0.999 else 0.0
                 _sz = 1.0 if abs(float(cy_)) > 0.999 else 0.0
@@ -2549,6 +3492,30 @@ class GfoldLander:
             # ---- ④ 姿态权限与循环时标（2026-09-28 用户要求）----
             loop_dt=_f(getattr(self, 'dbg_loop_dt', None), 4),
             rpc_ms=_f(getattr(self, 'dbg_rpc_ms', None), 1),
+            # ⑪ 循环分段耗时 [ms]（空 = 该段未初始化）
+            seg_rpc=_f(getattr(self, 'dbg_seg_rpc', None), 1),
+            seg_auth=_f(getattr(self, 'dbg_seg_auth', None), 1),
+            seg_state=_f(getattr(self, 'dbg_seg_state', None), 1),
+            seg_ctrl=_f(getattr(self, 'dbg_seg_ctrl', None), 1),
+            seg_draw=_f(getattr(self, 'dbg_seg_draw', None), 1),
+            # ⑫ 第七步 7(b) 姿态回路诊断
+            sched=_f(getattr(self, 'dbg_sched', None), 3),
+            rate_x=_f(getattr(self, 'dbg_rate_x', None), 4),
+            rate_y=_f(getattr(self, 'dbg_rate_y', None), 4),
+            ref_slew=_f(getattr(self, 'dbg_ref_slew', None), 1),
+            ref_clip=_f(getattr(self, 'dbg_ref_clamped', None), 1),
+            # ⑬ 第八步 8(a) 前馈诊断
+            ff_x=_f(getattr(self, 'dbg_ff_x', None), 4),
+            ff_y=_f(getattr(self, 'dbg_ff_y', None), 4),
+            # ⑭ 第十步 10(a) 竖直保底诊断
+            aver_floor=_f(getattr(self, 'dbg_aver_floor', None), 3),
+            aver_plan=_f(getattr(self, 'dbg_aver_plan', None), 3),
+            # ⑮ 第十一步 11(a) 规划质量诊断
+            plan_pk_tilt=_f(getattr(self, 'dbg_plan_pk_tilt', None), 2),
+            plan_tilt_j=_f(getattr(self, 'dbg_plan_tilt_j', None), 2),
+            plan_x0_up=_f(getattr(self, 'dbg_plan_x0_up', None), 2),
+            plan_tf_used=_f(getattr(self, 'dbg_plan_tf_used', None), 2),
+            plan_nj=_f(getattr(self, 'dbg_plan_nj', None), 2),
             tau_p=_f(getattr(self, 'dbg_tau_p', None), 0),
             tau_r=_f(getattr(self, 'dbg_tau_r', None), 0),
             tau_y=_f(getattr(self, 'dbg_tau_y', None), 0),
@@ -2885,6 +3852,8 @@ class GfoldLander:
             if game_dt < 0.01:
                 continue
             self.last_pkt = game_dt
+            # ⑪ 分段计时起点（2026-09-29 第六步 6(a)）
+            _t_seg0 = time.time()
 
             # ================================================================
             # 【2026-09-28 新增：姿态权限与循环时标测量（用户要求）】
@@ -2954,9 +3923,16 @@ class GfoldLander:
                     print(f'[WARN] 姿态权限采样失败: {type(_e).__name__}: {_e}')
                     self.log.note(f'auth sample failed: {type(_e).__name__}: {_e}')
 
+            _t_state = time.time()
             alt, dist, vz, vh, vmag, mass, tp, tv = self.state()
+            _t_state_done = time.time()
             tt = time.time() - t0
             self.dbg_rpc_ms = (time.time() - _t_rpc) * 1000.0
+            # ⑪ 分段：seg_rpc=上一帧结束→本节开始；seg_auth=权限采样；
+            #    seg_state=self.state()。seg_ctrl/seg_draw 在 draw() 之后填。
+            self.dbg_seg_rpc = (_t_rpc - _t_seg0) * 1000.0
+            self.dbg_seg_auth = (_t_state - _t_rpc) * 1000.0
+            self.dbg_seg_state = (_t_state_done - _t_state) * 1000.0
             # actuator sample: real thrust, not the throttl readback
             if not self.args.dry_run:
                 self._read_actuator()
@@ -3168,7 +4144,14 @@ class GfoldLander:
                         hold = rev * a_mag
                     else:
                         hold = np.array([G0, 0.0, 0.0])
+                    # ⑪ hold 段耗时起点（见下方 continue 前的两列赋值）
+                    _t_hold = time.time()
                     hold_dir = hold / max(1e-9, float(np.linalg.norm(hold)))
+                    # 【2026-09-29 第六步 6(b)】hold 段同样是姿态指令，
+                    #   一样加 30 deg 硬限幅（依据见 MAX_TILT_CMD_DEG）。
+                    #   注意这【不改变 hold 的推力幅值】——apply() 的节流
+                    #   来自第一个参数（hold），方向来自第二个参数。
+                    hold_dir = limit_tilt_dir(hold_dir, MAX_TILT_CMD_DEG)
                     if not self.args.dry_run:
                         self.apply(hold, hold_dir, game_dt)
                     self.tilt_cmd = math.degrees(math.atan2(
@@ -3212,6 +4195,11 @@ class GfoldLander:
                     #   标出【目标点】，提示程序在跑、且目标是哪里。
                     if self.debug_lines:
                         self.draw_target_marker()
+                    # ⑪ hold 帧同样补齐 seg_ctrl/seg_draw，否则这两列会
+                    #   残留【上一帧 gfold 段】的值，被误读成 hold 帧的耗时。
+                    #   hold 段的控制工作在 apply() 里（上面已调用）。
+                    self.dbg_seg_ctrl = (_t_hold - _t_state_done) * 1000.0
+                    self.dbg_seg_draw = (time.time() - _t_hold) * 1000.0
                     continue
 
             # ============================================================
@@ -3270,8 +4258,11 @@ class GfoldLander:
             #   与 dry_run / nav_mode 无关）。用 --debug-lines 控制开关。
             # 【2026-09-26 修正】plan 为 None 时不能画（旧版会 TypeError 被
             #   except 吞掉，表现为"完全看不到线"且毫无提示）。这里显式判断。
+            _t_ctrl = time.time()
             if self.debug_lines and self.plan is not None:
                 self.draw(self.plan)
+            self.dbg_seg_ctrl = (_t_ctrl - _t_state_done) * 1000.0
+            self.dbg_seg_draw = (time.time() - _t_ctrl) * 1000.0
 
             # 姿态实测
             # 【2026-09-26 修正】旧版这里写 `tilt_act = self.tilt_cmd`，

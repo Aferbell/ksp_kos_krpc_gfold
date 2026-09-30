@@ -44,6 +44,83 @@ import cvxpy as cp
 G0 = 9.80665
 SOLVER_NAME = 'CLARABEL'
 
+# ============================================================================
+# 【2026-09-29 第五步 5(b)：P4 的 tf 可行性探测参数】
+# ----------------------------------------------------------------------------
+#   tf4 = tf_m + 0.1*straight_fac 在【开启下降率包络】后不够用：
+#   包络拉长剖面，P4 的最小可行 tf 比 tf_m 增得更快。
+#   实测（AIM_ALT=2000 时）：P3 tf_m=29.8 s，而 P4 需要 tf>=34.0 s。
+#   这里用【步长递增探测】而不是严格二分：cgen 单次仅 ~0.06 s，
+#   10 次探测约 0.6 s，而二分至少 6~7 次且逻辑更繁。
+#   步长取 0.5 s：与旧的 +0.5 s 余量同量级，避免跳过最小可行点太远而多烧油。
+# ============================================================================
+_TF4_PROBE_STEP = 0.5    # 探测步长 [s]
+_TF4_PROBE_N = 16        # 最多探测次数（ 0.5*16 = 8 s 余量）
+
+# ============================================================================
+# 【2026-09-30 第十二步 12(a)：规划质量闸门（峰值倾角上限）】
+# ----------------------------------------------------------------------------
+# 【问题（已确证）】上面的探测取【第一个可行 tf】即 break，而最小时间解在
+#   边界上是【退化】的 —— 求解器用极端姿态去满足边界条件。
+#
+#   实测（cgen，mass 157.8 t，x0 = h 1111.03 / vz -57.36 / vh 5.81，这是
+#   实飞 gfold_log_20260930_010341 的规划起点的复原）：
+#       tf=18.05 -> 规划峰值倾角 82.95 deg     <- 探测会选中这一档
+#       tf=18.15 -> 83.88
+#       tf=18.25 -> 83.97
+#       tf=18.30 -> 57.47
+#       tf=18.35 -> 16.29
+#       tf=18.40 ->  7.14                     <- 加 0.35 s 就完全正常
+#   ⇒ 0.15~0.35 s 跨过一道悬崖，而这个"最省时间"的选择把控制器逼到
+#     84 deg —— 远超载具能力（alpha 低油门端只有 4.6 deg/s^2）。
+#
+# 【怎么确证"飞行追的就是这条退化规划"】用日志的 plan_alt/plan_vz 两列还原
+#   规划相图，与各 tf 下重新解出的规划曲线比对 RMS：
+#       tf=18.05 RMS=0.43  (峰值倾角 82.95)
+#       tf=18.25 RMS=1.48  (83.97)
+#       tf=18.50 RMS=2.63  ( 6.87)
+#       tf=22.00 RMS=12.55 ( 4.25)
+#   RMS 随 tf 单调上升，最小值就在退化档；且实测 tilt_cmd 峰值 80.31 deg
+#   与该档的 82.95 deg 吻合。对 x0 做 +-20 m / +-3 m/s 扰动后，最佳匹配的
+#   规划倾角仍恒为 82.9~84.0 deg ⇒ 结论稳健。
+#
+# 【修法】探测到可行 tf 后【不要立刻采信】，先算这条规划的峰值倾角；
+#   若超过 _PLAN_TILT_MAX_DEG 则继续向上探测，直到找到既可行又"姿态正常"
+#   的规划。仍找不到就退回【第一个可行解】（宁可飞退化规划，也不能不给规划）。
+#
+# 【阈值取 20 deg 的依据（用户指定 20）】
+#   · 非退化的正常规划峰值倾角实测 4.2~16.3 deg（上面的表 + 多种交接状态）
+#   · 退化解实测 57~84 deg
+#   · 20 deg 落在两者之间的空档里，两边的余量都很大（正常侧 +3.7、退化侧 -37）
+#   · 与控制器侧 MAX_TILT_CMD_DEG=30 一致：规划要 20 以内，控制器才有余量
+#     在 30 的锥内做修正，而不是一开始就贴着锥壁。
+#
+# 【代价】实测每次只需多探 1~4 档（步长 0.5 s），单次 0.06 s ⇒ 最多 +0.25 s
+#   解算耗时；燃料代价 ~0.7 t（tf 18.25->18.5 时 146.3->145.6 t）。
+#   相比"控制器追 84 deg 姿态导致失控"，这个代价可忽略。
+# ============================================================================
+_PLAN_TILT_MAX_DEG = 20.0   # 规划允许的峰值倾角 [deg]；超过则继续探测
+_PLAN_TILT_GATE = True      # 闸门开关（False = 旧行为：取第一个可行 tf）
+
+
+def _plan_peak_tilt_deg(u):
+    """一条规划的【峰值倾角】[deg] = max atan2(|u[1:3]|, u[0])。
+
+    【为什么单独写一个函数】控制器侧（gfold_land.py 的 plan_pk_tilt 列）
+    用的是同一个口径，两处必须一致，否则"日志显示正常但求解器判退化"。
+    【u 的形状】solver 内部一律是 (3, N)（见 gfold_p3p4.py 的 reshape）。
+    """
+    try:
+        U = np.asarray(u, float)
+        if U.ndim != 2 or U.shape[0] < 3 or U.shape[1] < 1:
+            return float('nan')
+        tw = np.degrees(np.arctan2(
+            np.linalg.norm(U[1:3, :], axis=0),
+            np.maximum(1e-09, np.abs(U[0, :]))))
+        return float(np.max(tw))
+    except Exception:                                # noqa: BLE001
+        return float('nan')
+
 
 # ============================================================================
 # 【2026-09-29 第二步：下降率包络（v_descent_max）】
@@ -884,7 +961,84 @@ def _solve_p3p4_impl(x0, mass, isp=315.0, t_max=8.99e6,
         if (np.linalg.norm(xs[0:3, i]) + np.linalg.norm(xs[3:6, i])) < 0.1:
             tf_m = i / xs.shape[1] * tf_guess
             break
-    tf4 = tf_m + 0.1 * straight_fac
+    # ================================================================
+    # 【2026-09-29 第五步 5(b)：tf4 的余量必须取【最小可行 tf】与 tf_m 的较大者】
+    # ----------------------------------------------------------------
+    # 旧写法：tf4 = tf_m + 0.1*straight_fac（straight_fac=5 ⇒ +0.5 s）。
+    # 它在【无包络】时够用，但加了 80 m/s 包络之后不够：
+    # 包络把剖面拉长，P4 的最小可行 tf 增加得比 P3 的 tf_m 更快。
+    # 实测（cgen，mass 157 t，入口 vz=-66.4 vh=19.9）：
+    #     AIM_ALT  entry_h  P3 tf_m  P4 min_tf  tf4=tf_m+0.5   结果
+    #        500     650      10.2     10.5        10.8        OK
+    #        700     850      13.5     13.5        14.0        OK
+    #        900    1050      15.0     17.0        15.5        INFEASIBLE (差 1.5 s)
+    #       1100    1250      17.5     20.5        18.0        INFEASIBLE (差 2.5 s)
+    #       1400    1550      21.2     24.5        21.8        INFEASIBLE (差 2.8 s)
+    #       2000    2150      29.8     34.0        30.2        INFEASIBLE (差 3.8 s)
+    #   ⇒ 抬高睒准点（AIM_ALT 500 -> 2000）在旧写法下【必然 infeasible】，
+    #     而不是因为能量不够（P4 在 tf=34 s 时 optimal，落地 138 t）。
+    #
+    # 【修法】把余量从固定 +0.5 s 改为：
+    #     tf4 = max(tf_m + tid, tf_min_feasible * 1.02)
+    #   其中 tf_min_feasible 用【一次快速二分】在 P4 模型上估出。
+    #
+    # 【为什么不能只把 0.5 改大】回退到下一节说明：
+    #   tf 越长，燃料越贵（实测 10.8 s->148.4 t，
+    #   18 s->145.1 t，34 s->138.0 t），固定加大余量会白白烧油；
+    #   而且不同 AIM_ALT 需要的余量不同（0.3~3.9 s）。
+    # ================================================================
+    _tf_lo = float(tf_m) + 0.1 * float(straight_fac)
+    _tf_hi = max(_tf_lo, 60.0)
+    tf4 = _tf_lo
+    # 先试当前值；若不可行则向上扩到一个可行值（步长递增，
+    # 避免真正的二分：每次试算都要调用一次求解器，而 cgen 单次仅 ~0.06 s）
+    _tf_probe = tf4
+    # ================================================================
+    # 【第十二步 12(a)】探测时【同时做规划质量检查】
+    #   旧逻辑：第一个可行解就 break（= 最小时间 = 边界 = 常常退化）
+    #   新逻辑：可行【且】峰值倾角 <= _PLAN_TILT_MAX_DEG 才采信；
+    #          退化解记下来当【兜底】，继续向上找。
+    #   兜底的必要性：宁可飞一条退化规划，也不能因为闸门而【没有规划】——
+    #          后者会让 nav_mode 停在 hold、载具直接掉下去。
+    # ================================================================
+    _tf_first_feas = None          # 第一个可行 tf（兜底）
+    _res_first_feas = None         # 对应的解
+    _tf_gate_ok = None             # 通过倾角闸门的 tf
+    for _ in range(_TF4_PROBE_N):
+        _v = vdesc_cap_vector(N4, float(x0[0]), float(x0[3]), mass, t_max,
+                              _tf_probe, isp=isp, v_descent_max=v_descent_max,
+                              term_win=term_win, term_vz=term_vz)
+        _r = _solve_one_cgen(4, np.asarray(x0, float), mass, _tf_probe, N4,
+                             pcs_deg=pcs_deg, pcs_start_deg=pcs_start_deg,
+                             vdesc=_v)
+        if _r is not None:
+            if _tf_first_feas is None:
+                _tf_first_feas = _tf_probe
+                _res_first_feas = _r
+            _pk = _plan_peak_tilt_deg(_r.get('u'))
+            # 闸门关闭 / 倾角无法计算 -> 直接采信第一个可行解（旧行为）
+            if (not _PLAN_TILT_GATE) or not (_pk == _pk):
+                _tf_gate_ok = _tf_probe
+                break
+            if _pk <= _PLAN_TILT_MAX_DEG:
+                _tf_gate_ok = _tf_probe
+                break
+            if verbose:
+                print('[gate] tf=%.2f 峰值倾角 %.1f deg > %.1f，继续探测'
+                      % (_tf_probe, _pk, _PLAN_TILT_MAX_DEG))
+        _tf_probe = min(_tf_hi, _tf_probe + _TF4_PROBE_STEP)
+    if _tf_gate_ok is not None:
+        tf4 = _tf_gate_ok
+    elif _tf_first_feas is not None:
+        # 闸门在探测范围内没找到合格解 -> 退回第一个可行解（保底）
+        tf4 = _tf_first_feas
+        _pk_fb = _plan_peak_tilt_deg(_res_first_feas.get('u')) \
+            if _res_first_feas is not None else float('nan')
+        print('[gate] 探测 %d 次未找到峰值倾角 <= %.1f deg 的可行规划，'
+              '退回第一个可行 tf=%.2f（其峰值倾角 %.1f deg）'
+              % (_TF4_PROBE_N, _PLAN_TILT_MAX_DEG, tf4, _pk_fb))
+        if verbose:
+            print('[gate] 兜底 tf=%.2f 峰值倾角 %.1f deg' % (tf4, _pk_fb))
 
     # ---- P4：优先走 C 代码生成（快 ~40 倍），失败回退 cvxpy ----
     #   【为什么只对 P4 走这条】P4 输出最终轨迹，是耗时大头；
