@@ -1154,6 +1154,24 @@ class Logger:
             #   plan_tf_used : 求解器本次实际用的 tf [s]（探测后的值）
             #   plan_nj      : 轨迹采样序号 j（与 n_i 同源）
             'plan_pk_tilt', 'plan_tilt_j', 'plan_x0_up', 'plan_tf_used', 'plan_nj',
+            # ---- ⑯ 第十三步 13(a) 水平指令分项定向诊断 ----
+            #   【用途】定位"规划只要 11.69deg，控制器却要 58deg"的放大来源。
+            #   把 target_a 拆成三项，各自与【速度水平方向】求夹角余弦：
+            #     u_h / pdv_h / pdp_h : 三者的水平幅值 [m/s^2]
+            #       u_h   = 规划自己的水平需求 |u_i[1:3]|
+            #       pdv_h = 速度误差项  K_VEL*|(v_i-vel)[1:3]|
+            #       pdp_h = 位置误差项  K_POS*|(x_i-error)[1:3]|
+            #     u_dot / pdv_dot / pdp_dot : 各分项方向与速度方向夹角的余弦
+            #       +1 = 沿速度方向【加速漂移】   -1 = 【制动漂移】（期望）
+            #     cmd_dot : 合成 a_h 与速度方向夹角的余弦
+            #       【期望为负（制动）】；实测 +0.515 是异常
+            #   【判读】三项哪一项 dot 为正，就是哪一项在把载具推向速度方向。
+            #   【无效值】|速度水平| < 1.0 m/s 时 dot 置空（方向病态，见说明）。
+            'u_h', 'pdv_h', 'pdp_h',
+            'u_dot', 'pdv_dot', 'pdp_dot', 'cmd_dot',
+            #   vec_chk : 【自校验】|三项重构 - 真实 target_a[1:3]|，恒应 ~0。
+            #     显著非 0 说明本诊断与 PD 表达式脱节 -> 分项结论作废。
+            'vec_chk',
             'note']
 
     def __init__(self, enabled=True, name=None):
@@ -1330,6 +1348,16 @@ class GfoldLander:
         self.dbg_plan_x0_up = float('nan')
         self.dbg_plan_nj = float('nan')
         self.dbg_plan_tf_used = float('nan')
+        # 【第十三步 13(a)】水平指令分项定向诊断（判读见 track() 的说明）
+        self.dbg_u_h = float('nan')
+        self.dbg_pdv_h = float('nan')
+        self.dbg_pdp_h = float('nan')
+        self.dbg_u_dot = float('nan')
+        self.dbg_pdv_dot = float('nan')
+        self.dbg_pdp_dot = float('nan')
+        self.dbg_cmd_dot = float('nan')
+        # 13(a) 自校验：重构分项与真实 target_a 水平分量的差（恒应 ~0）
+        self.dbg_vec_chk = float('nan')
         self.dbg_trk_pos = float('nan')
         self.dbg_trk_pos_up = float('nan')
         self.dbg_trk_pos_h = float('nan')
@@ -2142,6 +2170,92 @@ class GfoldLander:
         # 即【速度项用 K_VEL=0.8、位置项用 K_POS=0.5】。
         target_a = u_i + (v_i - vel) * K_VEL + (x_i - error) * K_POS
         target_a_ = u_i_ + (v_i_ - vel) * K_VEL + (x_i - error) * K_POS
+
+        # ============================================================
+        # 【2026-09-30 第十三步 13(a)：水平指令的【分项定向】诊断】
+        # ------------------------------------------------------------
+        # 【为什么要加 —— 已确证的问题】实飞 gfold_log_20260930_121514
+        #   （闸门生效、规划峰值倾角只有 11.69 deg）却有：
+        #       tilt_cmd 峰值 58.17 deg          -> 相对规划 4.98 倍放大
+        #       a_h 峰值 13.97 m/s²（超过规划的竖直分量 5.7）
+        #       vh 从 0.6 涨到 35.77 m/s（规划要它保持 0）
+        #       指令方向 dot(hd, vel_h) = +0.515：76% 的帧在【加速】水平漂移
+        #       其中 t=0~5 s 是 dot=+1.000（100% 沿速度方向推）
+        #   而制动 9.9 m/s 只需 1.6 m/s²（30 m 内）—— 能力完全够。
+        #   ⇒ 不是能力不足，是【方向/符号】层面。但【不知道是哪一项造成的】。
+        #
+        # 【这一列组要回答什么】把指令拆成三项，各自与速度方向求夹角：
+        #       target_a_h = u_h + K_VEL*(v_i-vel)_h + K_POS*(x_i-error)_h
+        #                   └规划┘ └────速度误差项────┘ └────位置误差项────┘
+        #   · u_h      : 规划自己的水平需求幅值
+        #   · pdv_h    : 速度误差项（K_VEL）的水平幅值
+        #   · pdp_h    : 位置误差项（K_POS）的水平幅值
+        #   · u_dot    : dot(u_h 方向, 速度水平方向)
+        #                 +1 = 规划让载具【沿速度方向加速】；-1 = 制动
+        #   · pdv_dot  : 同上，速度误差项。【应当为 -1（制动）】
+        #   · pdp_dot  : 同上，位置误差项
+        #   · cmd_dot  : 合成指令 a_h 的方向与速度方向的夹角余弦
+        #                 【应当为负（制动）】；实测 +0.515 是异常
+        #
+        # 【怎么判读（三个候选，一次飞行即可分离）】
+        #   候选 A：u_dot 为正且 u_h 大         -> 规划侧（求解器给了沿速度的推力）
+        #   候选 B：pdv_dot 为正（应当 -1）     -> PD 速度项符号/分量耦合
+        #   候选 C：pdp_dot 为正（应当 -1）     -> PD 位置项符号/分量耦合
+        #   候选 D：三项 dot 都正确但 cmd_dot>0 -> 合成/坐标系口径问题
+        #
+        # 【口径说明】取【限幅前】的 target_a —— 那才是 PD 律真正算出的东西；
+        #   a_cmd_h（已有列）是限幅后的值，两者必须能对上。
+        # 【数值保护】|速度水平| 很小时方向无意义（实测倾角 0~10 deg 时方位角
+        #   速率高达 137 deg/s，是病态量）。故 |vel_h| < 1.0 时 dot 置 NaN。
+        # ============================================================
+        try:
+            _up3 = np.asarray(target_a, float)
+            _uh_vec = np.asarray(u_i, float)[1:3]
+            _dv_vec = (np.asarray(v_i, float) - np.asarray(vel, float))[1:3]
+            _dp_vec = (np.asarray(x_i, float) - np.asarray(error, float))[1:3]
+            _velh = np.asarray(vel, float)[1:3]
+            _vh_mag = float(np.linalg.norm(_velh))
+            self.dbg_u_h = float(np.linalg.norm(_uh_vec))
+            self.dbg_pdv_h = float(np.linalg.norm(_dv_vec) * K_VEL)
+            self.dbg_pdp_h = float(np.linalg.norm(_dp_vec) * K_POS)
+            if _vh_mag > 1.0:
+                _vd = _velh / _vh_mag
+
+                def _dot_with_vel(v):
+                    n = float(np.linalg.norm(v))
+                    return float(np.dot(v, _vd)) / n if n > 1e-09 else float('nan')
+
+                self.dbg_u_dot = _dot_with_vel(_uh_vec)
+                self.dbg_pdv_dot = _dot_with_vel(_dv_vec)
+                self.dbg_pdp_dot = _dot_with_vel(_dp_vec)
+                _cmd_h = _up3[1:3]
+                _cn = float(np.linalg.norm(_cmd_h))
+                self.dbg_cmd_dot = (float(np.dot(_cmd_h, _vd)) / _cn
+                                    if _cn > 1e-09 else float('nan'))
+            else:
+                # 见下方 vec_chk 说明：|速度水平| 太小时不做定向判读
+                self.dbg_u_dot = float('nan')
+                self.dbg_pdv_dot = float('nan')
+                self.dbg_pdp_dot = float('nan')
+                self.dbg_cmd_dot = float('nan')
+            # ---- 【自校验】三项重构之和 与 真实 target_a 水平分量之差 ----
+            #   【为什么要它】上面三项是【照抄】PD 表达式写出来的。若将来有人
+            #   改了 track() 里的公式而忘了同步这里，日志会给出"看似合理但
+            #   与实际指令不符"的分项，从而把人引入错误的结论。
+            #   本列 = |(u_h + K_VEL*dv_h + K_POS*dp_h) - target_a[1:3]|，
+            #   恒应 ~0（浮点量级）。若显著非 0，说明本段与 PD 表达式脱节，
+            #   分项结论【作废】。
+            _recon = _uh_vec + _dv_vec * K_VEL + _dp_vec * K_POS
+            self.dbg_vec_chk = float(np.linalg.norm(_recon - _up3[1:3]))
+        except Exception:                            # noqa: BLE001
+            self.dbg_u_h = float('nan')
+            self.dbg_pdv_h = float('nan')
+            self.dbg_pdp_h = float('nan')
+            self.dbg_u_dot = float('nan')
+            self.dbg_pdv_dot = float('nan')
+            self.dbg_pdp_dot = float('nan')
+            self.dbg_cmd_dot = float('nan')
+            self.dbg_vec_chk = float('nan')
 
         a_cap = self.a_cap_real()
         # 【2026-09-28 P0】原为硬编码 0.05，导致 gfold 段全程油门被钉在
@@ -3516,6 +3630,15 @@ class GfoldLander:
             plan_x0_up=_f(getattr(self, 'dbg_plan_x0_up', None), 2),
             plan_tf_used=_f(getattr(self, 'dbg_plan_tf_used', None), 2),
             plan_nj=_f(getattr(self, 'dbg_plan_nj', None), 2),
+            # ⑯ 第十三步 13(a) 水平指令分项定向诊断
+            u_h=_f(getattr(self, 'dbg_u_h', None), 3),
+            pdv_h=_f(getattr(self, 'dbg_pdv_h', None), 3),
+            pdp_h=_f(getattr(self, 'dbg_pdp_h', None), 3),
+            u_dot=_f(getattr(self, 'dbg_u_dot', None), 3),
+            pdv_dot=_f(getattr(self, 'dbg_pdv_dot', None), 3),
+            pdp_dot=_f(getattr(self, 'dbg_pdp_dot', None), 3),
+            cmd_dot=_f(getattr(self, 'dbg_cmd_dot', None), 3),
+            vec_chk=_f(getattr(self, 'dbg_vec_chk', None), 6),
             tau_p=_f(getattr(self, 'dbg_tau_p', None), 0),
             tau_r=_f(getattr(self, 'dbg_tau_r', None), 0),
             tau_y=_f(getattr(self, 'dbg_tau_y', None), 0),
