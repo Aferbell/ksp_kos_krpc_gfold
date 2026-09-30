@@ -500,6 +500,72 @@ FF_CLAMP_RAD = 0.12        # = 0.30 权限占比 / kd(2.5)
 # ============================================================================
 MAX_TILT_CMD_DEG = 30.0
 
+# ============================================================================
+# 【2026-09-30 第十四步 14(a)：倾角第一性控制律（TILT-FIRST）】
+# ----------------------------------------------------------------------------
+# 【为什么要有这一版（已确证的病症）】
+#   实飞 gfold_log_20260930_192302（求解器闸门已生效、规划峰值倾角仅 16.84 deg，
+#   即【规划是干净的】）仍然出现：
+#       · tilt_cmd 均值 32.64 / 最大 59.27，而 plan_tilt_j 均值只有 3.10
+#         => PD 把倾角需求放大了 10.5 倍
+#       · 41% 的帧 tilt_dir_cmd 被钉在 30 deg 上限
+#       · att_err 均值 22.80 deg（与 sqrt(err_x^2+err_z^2) 比 1.01，自洽）
+#       · 指令倾角速率 均值 10.0 / p90 29.3 deg/s，而 kp=2、alpha=18.6 时
+#         可跟踪速率只有 4.0 deg/s（滞后 5 deg）=> 超能力 2.5~7 倍
+#       · vh 无法收敛：0.33 ~ 26.22 m/s 反复振荡，落地时仍 18.84 m/s
+#
+# 【根因：倾角是"加速度需求的导数"，而不是被直接控制的量】
+#   现行律（逐行照抄参考仓库）：
+#       target_a = u_i + K_VEL*(v_i-vel) + K_POS*(x_i-error)      <- 加速度
+#       tilt_cmd = atan2(|target_a[1:3]|, target_a[0])            <- 反算倾角
+#   于是：① 倾角没有速率上限，PD 想要多大就多大；
+#         ② 水平分量是若干小向量之和，其方位角是 atan2(小量) 病态量；
+#            实测 plan |u_h| 中位数只有 0.001（相对竖直 13.4），
+#            规划自身的方位角速率都达到 390 deg/s —— 两个源都病态；
+#         ③ 指令要求的水平加速度【不经过能力检查】。
+#
+# 【新律：倾角第一性】
+#   把倾角当作【状态】直接规划，水平加速度成为【输出】：
+#       tilt_want = tilt_plan + tilt_corr          （限幅 + 速率限制）
+#       方位角    = 误差方向（指向瞄准点），不用 atan2(加速度和)
+#       a_h       = |a| * sin(tilt)                <- 能力【由构造成立】
+#       a_up      = |a| * cos(tilt)
+#   因为 a_h 是 sin(tilt) 的输出，控制器【在数学上无法】要求超过能力的
+#   水平加速度 —— 从结构上消除了"指令超出能力"。
+#
+# 【为什么方位角改用误差方向】
+#   实测条件数：plan |u_h| 中位数 0.001；而 |he|（相对瞄准点的水平偏移）
+#   均值 16.16 m、只有 5% 的帧 <1 m。误差方向是【唯一条件数良好】的方向信号。
+#   仍然保留 |he| 过小时的【方向保持】（不更新方位角），避免病态。
+#
+# 【终端竖直保证（用户要求：就算落不到目标点也要竖直落地）】
+#   实测：从 30 deg 转到 0 deg 在 alpha=18.6 下需 1.80 s；以 vz=-40 m/s 计
+#   这期间下落 72 m。故在 alt < TILT_TERM_ALT 时把倾角线性收到 0。
+#   代价是落点偏差增大 —— 【这是有意接受的取舍】。
+#
+# 【为什么保留旧路径为开关】
+#   这属于【架构级改动】，而此前的在线仿真把方位角理想化了（未独立验证
+#   新方位角信号一定更稳）。TILT_FIRST_ENABLE=False 时【逐行走旧律】，
+#   便于一行回退对照。旧路径的代码与注释【原样保留】。
+# ============================================================================
+TILT_FIRST_ENABLE = True    # True=新律（倾角第一性） False=旧律（原样）
+TILT_RATE_MAX_DEG = 8.0     # 倾角指令的最大角速率 [deg/s]
+#   【取值依据】可跟踪速率 ≈ 允许滞后 / 环路时间常数。实测 alpha=18.6、
+#   kp=2 -> wn=sqrt(alpha*kp)=0.805 rad/s -> tau=1.24 s。
+#   滞后 10 deg 对应 10/1.24 = 8.1 deg/s。取 8.0 => 预期滞后 ~10 deg，
+#   远小于当前的 22.8 deg。（不取更小是为了保留足够的修正带宽。）
+TILT_CORR_VEL_GAIN = 1.2    # 倾角修正项对水平速度误差的增益 [deg per m/s]
+TILT_CORR_POS_GAIN = 0.25   # 倾角修正项对水平位置误差的增益 [deg per m]
+#   【口径说明】这两项直接输出【倾角修正量】(deg)，而不是加速度。
+#   取值的物理含义：水平速度差 10 m/s -> 加 12 deg 倾角；
+#   位置差 20 m -> 加 5 deg 倾角。二者相加后与规划倾角相加再限幅。
+TILT_TERM_ALT = 90.0        # 终端收倾角的起始高度 [m]
+#   【取值依据】30 deg -> 0 deg 需 1.80 s，vz=-40 m/s 时下落 72 m；
+#   留 18 m 裕量 => 90 m。低于此高度倾角线性收到 0，保证竖直触地。
+TILT_AZ_MIN_ERR = 1.5       # 误差小于该值 [m] 时【保持】方位角不再更新
+#   【为什么】|he| 很小时 atan2 病态（实测 5% 的帧 <1 m）。保持上一次
+#   有效方位角，避免在接近目标点时方位角乱跳。
+
 # 是否画参考轨迹线（对齐参考仓库 params.txt 的 debug_lines，它默认 True）。
 #   【2026-09-26 修正】旧版只在 --dry-run 时画，导致正常飞行看不到线。
 #
@@ -1172,6 +1238,24 @@ class Logger:
             #   vec_chk : 【自校验】|三项重构 - 真实 target_a[1:3]|，恒应 ~0。
             #     显著非 0 说明本诊断与 PD 表达式脱节 -> 分项结论作废。
             'vec_chk',
+            # ---- ⑰ 第十四步 14(a) 倾角第一性控制律诊断 ----
+            #   【用途】核对新律是否把倾角真正当作状态，以及各分量去向。
+            #   tf_on      : 1 = 本帧走新律；空/0 = 走旧律或新律异常回退
+            #   tf_err     : 1 = 新律抛异常并已退回旧律（应为空）
+            #   tf_plan    : 规划自己的倾角 [deg]（第一性量的基准）
+            #   tf_corr    : 倾角修正量 [deg] = Kv*|速度误差| + Kp*|位置误差|
+            #   tf_want    : 限幅 + 终端收敛后的倾角目标 [deg]
+            #   tf_cmd     : 限速后的倾角状态 [deg]（= 新律的 tilt_cmd）
+            #   tf_perr    : 水平位置误差幅值 |(x_i-error)[1:3]| [m]
+            #   tf_verr    : 水平速度误差幅值 |(v_i-vel)[1:3]| [m/s]
+            #   tf_az_n/e  : 方位角单位向量（误差方向，北/东分量）
+            #   【怎么判读】
+            #     tf_cmd 应 <= TILT_RATE_MAX*dt 变化，且平滑 -> 速率限制生效
+            #     tf_plan 与 tilt_act 对比 -> 看机身是否跟得上规划倾角
+            #     tf_corr 占比大 -> 说明 PD 修正在主导，检查增益
+            #     tf_az_n/e 突变 -> 方位角在跳，需加大 TILT_AZ_MIN_ERR
+            'tf_on', 'tf_err', 'tf_plan', 'tf_corr', 'tf_want', 'tf_cmd',
+            'tf_perr', 'tf_verr', 'tf_az_n', 'tf_az_e',
             'note']
 
     def __init__(self, enabled=True, name=None):
@@ -1348,6 +1432,18 @@ class GfoldLander:
         self.dbg_plan_x0_up = float('nan')
         self.dbg_plan_nj = float('nan')
         self.dbg_plan_tf_used = float('nan')
+        self.tf_tilt_prev = 0.0      # 14(a) 倾角状态（速率限制用）
+        self.tf_az_dir = None        # 14(a) 方位角状态（误差方向，病态时保持）
+        self.dbg_tf_enable = float('nan')
+        self.dbg_tf_tilt_plan = float('nan')
+        self.dbg_tf_tilt_corr = float('nan')
+        self.dbg_tf_tilt_want = float('nan')
+        self.dbg_tf_tilt_cmd = float('nan')
+        self.dbg_tf_perr = float('nan')
+        self.dbg_tf_verr = float('nan')
+        self.dbg_tf_az_n = float('nan')
+        self.dbg_tf_az_e = float('nan')
+        self.dbg_tf_err = float('nan')
         # 【第十三步 13(a)】水平指令分项定向诊断（判读见 track() 的说明）
         self.dbg_u_h = float('nan')
         self.dbg_pdv_h = float('nan')
@@ -2437,9 +2533,127 @@ class GfoldLander:
         #   alpha 小（油门低）时自动收紧。上下限见 REF_SLEW_MIN/MAX。
         # ============================================================
         self.target_direction = self._limit_ref_slew(self.target_direction)
+
+        # ============================================================
+        # 【2026-09-30 第十四步 14(a)：倾角第一性控制律】
+        # ------------------------------------------------------------
+        # 【插入位置说明】放在【旧律全部算完之后】、tilt_cmd 定稿之前。
+        #   这样旧路径的代码（target_a / target_a_ / conic_clamp /
+        #   limit_tilt_dir / _limit_ref_slew）【一行未改】—— 关掉开关即
+        #   逐行走旧律，便于一行回退对照。
+        # 【改写什么】只改写【姿态参考方向】与【tilt_cmd 的出处】：
+        #   旧：tilt_cmd = atan2(|target_a[1:3]|, target_a[0])（反算）
+        #   新：tilt_cmd 是状态，经限幅 + 限速后【正算】出 a_up / a_h
+        # 详见 TILT_FIRST_ENABLE 处的完整依据。
+        # ============================================================
+        if TILT_FIRST_ENABLE:
+            try:
+                # ---- ① 规划自己的倾角（第一性量的基准）----
+                _p0 = float(u_i[0]) if u_i is not None else G0
+                _ph = float(np.linalg.norm(np.asarray(u_i, float)[1:3])) \
+                    if u_i is not None else 0.0
+                _tilt_plan = (math.degrees(math.atan2(_ph, max(1e-09, _p0)))
+                              if abs(_p0) > 1e-09 else 0.0)
+                # ---- ② 水平修正量：由【误差方向】决定方位角 ----
+                #   _dpos 已在下方算出？不 —— 此处早于它，故就地重算。
+                _dp = (np.asarray(x_i, float) - np.asarray(error, float))[1:3]
+                _dve = (np.asarray(v_i, float) - np.asarray(vel, float))[1:3]
+                #   误差方向 = 指向瞄准点 = -_dp（_dp 是"规划点 - 本机"，
+                #   其水平分量指向规划点；本机应朝该方向修正）
+                _perr = float(np.linalg.norm(_dp))
+                _verr = float(np.linalg.norm(_dve))
+                # ---- ③ 倾角修正量（直接是 deg，不是加速度）----
+                _tcorr = (TILT_CORR_VEL_GAIN * _verr
+                          + TILT_CORR_POS_GAIN * _perr)
+                _tilt_want = _tilt_plan + _tcorr
+                # ---- ④ 限幅 ----
+                _tilt_want = max(0.0, min(MAX_TILT_CMD_DEG, _tilt_want))
+                # ---- ⑤ 终端收倾角：保证竖直落地 ----
+                _alt_now = float(error[0]) + TARGET_ALT
+                if TILT_TERM_ALT > 1e-6 and _alt_now < TILT_TERM_ALT:
+                    _tilt_want *= max(0.0, _alt_now / TILT_TERM_ALT)
+                # ---- ⑥ 速率限制（把倾角当状态积分）----
+                _dt_t = float(getattr(self, 'last_pkt', 0.02))
+                if not (_dt_t > 1e-9):
+                    _dt_t = 0.02
+                _prev_tilt = float(getattr(self, 'tf_tilt_prev', 0.0))
+                _step = TILT_RATE_MAX_DEG * _dt_t
+                _tilt_cmd = _prev_tilt + max(-_step, min(_step,
+                                                         _tilt_want - _prev_tilt))
+                _tilt_cmd = max(0.0, min(MAX_TILT_CMD_DEG, _tilt_cmd))
+                self.tf_tilt_prev = _tilt_cmd
+                # ---- ⑦ 方位角：误差方向，病态时保持 ----
+                #   【符号：这里是本项目最容易出错的地方，已用数值验证】
+                #     error = tp = 本机相对【瞄准点】的偏移
+                #     x_i   = 规划的当前位置（同坐标系）
+                #     期望的水平推力方向 = 【把本机推回瞄准点】
+                #   数值例（本机偏北 20 m）：
+                #     error_h = [20, 0] ; x_i_h = [0, 0]
+                #     _dp = (x_i-error)_h = [-20, 0]  -> 北分量为负 = 朝南
+                #     本机在北边，要回瞄准点必须朝南加速 => 方向 = _dp
+                #   ⇒ 用 +_dp，不是 -_dp。
+                #   （与既有 h_misalign 的口径一致：那里期望方向 = -he，
+                #     而 _dp = x_i - error，在 x_i≈0 时 -he 与 _dp 同向。）
+                #   【旧版本写成 -_dp 是错的，会把载具推向背离目标的方向。】
+                _az = getattr(self, 'tf_az_dir', None)
+                if _perr > TILT_AZ_MIN_ERR:
+                    _n = float(np.linalg.norm(_dp))
+                    if _n > 1e-09:
+                        _az = (_dp / _n).copy()
+                        self.tf_az_dir = _az
+                if _az is None:
+                    # 尚无有效方位角 -> 退回旧律方向，避免无方向可用
+                    _az = np.array([0.0, 0.0, 0.0])
+                    _old_h = np.asarray(target_a, float)[1:3]
+                    _ohn = float(np.linalg.norm(_old_h))
+                    if _ohn > 1e-09:
+                        _az = _old_h / _ohn
+                    self.tf_az_dir = _az
+                # ---- ⑧ a_h 是【输出】：能力由构造成立 ----
+                _amag = float(np.linalg.norm(target_a))
+                _tr = math.radians(_tilt_cmd)
+                _a_up_new = _amag * math.cos(_tr)
+                _a_h_new = _amag * math.sin(_tr)
+                # ---- ⑨ 重写姿态参考方向（这才是 apply() 追的量）----
+                _dir_new = np.array([math.cos(_tr),
+                                     _a_h_new * float(_az[0]) / max(1e-09, _amag),
+                                     _a_h_new * float(_az[1]) / max(1e-09, _amag)])
+                _dn = float(np.linalg.norm(_dir_new))
+                if _dn > 1e-09:
+                    self.target_direction = _dir_new / _dn
+                # ---- ⑩ 节流向量与 tilt_cmd 同步到新律 ----
+                #   竖直保底仍然生效（AVER_FLOOR），但不再由锥角乘掉。
+                if AVER_FLOOR_ENABLE and _p0 == _p0:
+                    _fe = max(0.0, min(float(AVER_FLOOR), float(_p0), G0 * 0.99))
+                    _a_up_new = max(_a_up_new, _fe)
+                self.a_cmd_vec = np.array([_a_up_new,
+                                           _a_h_new * float(_az[0]),
+                                           _a_h_new * float(_az[1])])
+                target_a = self.a_cmd_vec
+                self.tilt_cmd = _tilt_cmd
+                # 诊断：把新律内部量落盘
+                self.dbg_tf_enable = 1.0
+                self.dbg_tf_tilt_plan = _tilt_plan
+                self.dbg_tf_tilt_corr = _tcorr
+                self.dbg_tf_tilt_want = _tilt_want
+                self.dbg_tf_tilt_cmd = _tilt_cmd
+                self.dbg_tf_perr = _perr
+                self.dbg_tf_verr = _verr
+                self.dbg_tf_az_n = float(_az[0]) if _az is not None else float('nan')
+                self.dbg_tf_az_e = float(_az[1]) if _az is not None else float('nan')
+            except Exception as _e:                 # noqa: BLE001
+                # 【安全网】新律任何异常都必须退回旧律，绝不能让一帧
+                #   没有姿态参考（那会让载具失控）。记录一次供排查。
+                self.dbg_tf_err = 1.0
+                if not getattr(self, '_tf_err_warned', False):
+                    self._tf_err_warned = True
+                    print('[TILT-FIRST] 异常，已退回旧律: %s: %s'
+                          % (type(_e).__name__, _e))
+
         self.a_cmd_vec = target_a
-        self.tilt_cmd = math.degrees(math.atan2(
-            float(np.linalg.norm(target_a[1:3])), max(1e-09, float(target_a[0]))))
+        if not TILT_FIRST_ENABLE:
+            self.tilt_cmd = math.degrees(math.atan2(
+                float(np.linalg.norm(target_a[1:3])), max(1e-09, float(target_a[0]))))
         # 【记录【真正的姿态目标】倾角】日志里的 tilt_cmd 是【节流向量
         #   target_a】的倾角，但【姿态】追的是【前瞻向量 target_a_】——
         #   两者是【不同的向量】，倾角也不同！必须分开记。
@@ -3639,6 +3853,17 @@ class GfoldLander:
             pdp_dot=_f(getattr(self, 'dbg_pdp_dot', None), 3),
             cmd_dot=_f(getattr(self, 'dbg_cmd_dot', None), 3),
             vec_chk=_f(getattr(self, 'dbg_vec_chk', None), 6),
+            # ⑰ 第十四步 14(a) 倾角第一性控制律诊断
+            tf_on=_f(getattr(self, 'dbg_tf_enable', None), 0),
+            tf_err=_f(getattr(self, 'dbg_tf_err', None), 0),
+            tf_plan=_f(getattr(self, 'dbg_tf_tilt_plan', None), 2),
+            tf_corr=_f(getattr(self, 'dbg_tf_tilt_corr', None), 2),
+            tf_want=_f(getattr(self, 'dbg_tf_tilt_want', None), 2),
+            tf_cmd=_f(getattr(self, 'dbg_tf_tilt_cmd', None), 2),
+            tf_perr=_f(getattr(self, 'dbg_tf_perr', None), 2),
+            tf_verr=_f(getattr(self, 'dbg_tf_verr', None), 3),
+            tf_az_n=_f(getattr(self, 'dbg_tf_az_n', None), 4),
+            tf_az_e=_f(getattr(self, 'dbg_tf_az_e', None), 4),
             tau_p=_f(getattr(self, 'dbg_tau_p', None), 0),
             tau_r=_f(getattr(self, 'dbg_tau_r', None), 0),
             tau_y=_f(getattr(self, 'dbg_tau_y', None), 0),
