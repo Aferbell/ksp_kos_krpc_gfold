@@ -22,20 +22,40 @@ TARGET_ALT = GL.TARGET_ALT
 
 class FakeV:
     max_thrust = 8990529.0
+    available_thrust = 8990529.0   # a_cap_real/_gfold_floor 都要读
     mass = 183900.0
+    name = 'B1040-9(fake)'
 
 
 def build_lander():
-    """绕过 __init__（它要连 kRPC），手工塞齐 track() 需要的属性。"""
+    """绕过 __init__（它要连 kRPC），手工塞齐 track() 需要的属性。
+
+    【2026-10-08 重写后必须同步】新 track() 的内环状态是 a_h（tf_ah_prev），
+    不再是倾角（tf_tilt_prev）；并且用到方位角状态、alpha 权限、推力自校准。
+    凡是 track() 真正读的实例字段都必须在这里给出，否则会 AttributeError。
+    """
     obj = GL.GfoldLander.__new__(GL.GfoldLander)
     obj.v = FakeV()
     obj.gfold_n_i = -100.0
     obj.last_pkt = 0.02
+    obj.gfold_traj_ready = False
     obj.target_direction = None
     obj.tilt_cmd = 0.0
     obj.a_cmd_vec = None
     obj.tilt_cap = 0.0
     obj.tilt_act = 0.0
+    obj.idx_frozen_n = 0
+    obj._sample_arrived_ok = False
+    obj.min_mag_eff = 0.0
+    obj.tf_ah_prev = 0.0          # 内环状态：水平加速度幅值
+    obj.tf_az_dir = None          # 方位角状态（病态时保持）
+    obj._ref_slew_prev = None
+    obj.dbg_ref_clamped = 0.0
+    obj.dbg_alpha_max = 20.0      # 姿态权限 [deg/s^2]
+    obj.dbg_avel_local = [0.0, 0.0, 0.0]
+    obj._tscale = 1.0
+    obj._tscale_buf = []
+    obj._tscale_prev_cmd = float('nan')
     return obj
 
 

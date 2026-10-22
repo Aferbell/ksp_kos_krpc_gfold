@@ -1,10 +1,24 @@
-# verify_terminal.py — 验证 kRPC 终端段（B1040-7 结构）能软着陆
+# verify_terminal.py — 【已废弃，2026-10-08】
 #
-# 【为什么单独测这一段】G-FOLD 负责 5000→25 m，B1040-7 终端段负责最后 25 m。
-# 终端段用最简单的 3DoF 积分从多种入场状态验证：
-#   · 落地 vz 应收敛到 -TERM_V（约 -2 m/s）
-#   · 落地水平速度应接近 0
-#   · tilt_cap 应随高度收缩到 0 ⇒ 推力竖直
+# 【为什么废弃】本脚本验证的是 GfoldLander.terminal_cmd（B1040-7 终端段），
+#   但该函数在本项目里【早已删除】—— 参考仓库的 final 段被第三步 3(b) 移除，
+#   收尾交给 G-FOLD 竖直闭环（见 gfold_land.py 的 track() ⑥）。
+#   此后本脚本之所以还能跑，只是因为 TERM_*/TILT_SPAN 这几个【没人用】的常量
+#   恰好还留在文件顶部；它测的一直是一段孤立代码，与实飞无关。
+#
+# 【2026-10-08 重写】重写版删除了这些死常量（依据见
+#   dev/reports/REWRITE_NECESSITY_ANALYSIS.md 的可删块清单），
+#   本脚本随之失效。保留文件是为了留下 B1040-7 终端段的参数来源。
+#   若将来确实要恢复终端段，请先恢复 terminal_cmd 及其常量。
+#
+# 【当前状态】直接运行会 AttributeError: module 'gfold_land' has no attribute
+#   'TERM_H'。这是【预期的】，不是回归。
+raise SystemExit(
+    'verify_terminal.py 已废弃：terminal_cmd 早已删除，'
+    '本脚本测的是孤立代码。见 dev/reports/REWRITE_NECESSITY_ANALYSIS.md')
+
+# ---------------------------------------------------------------------------
+# 【以下为历史实现，仅供参考参数来源】
 import math
 import numpy as np
 

@@ -110,5 +110,35 @@ recovery/
 # ---- 实飞日志（体积大、多为二进制/时序数据）----
 #   日志本体在仓库外（log-B1040-9-gfold/ 与 log-B1040-9/），此处仅兜底。
 *.csv
-*.log# ---- temp commit message file (not tracked) ----
+*.log
+
+# ---- temp commit message file (not tracked) ----
 _cm.txt
+
+# ============================================================
+# 【2026-10-22 追加】上传前的排除规则
+# ============================================================
+
+# ---- 视频分析帧（2.7 GB，绝对不能进仓库）----
+#   dev/video_analysis/ 是从录屏提取的 PNG 帧（4058 个 / 2.69 GB）。
+#   之前【没有 ignore】，一次 git add -A 就会把 2.7 GB 塞进暂存区。
+video_analysis/
+
+# ---- analysis/ 下一次性提取的帧目录 ----
+#   这三类都是跑分析脚本时临时抽的帧，用完即删。
+analysis/_frames_*/
+analysis/overlap_frames/
+
+# ---- kOS 内置函数表（可从 kOS 导出重新生成）----
+analysis/_kos_*.txt
+
+# ---- starship/ 的 cvxpygen 中间产物（只保留 .pyd）----
+#   【为什么要单独写】上面的 cpg_p3/* 与 solver/cpg_p3/* 只匹配那两个路径，
+#   不覆盖 starship/cpg_p3/*。实测 starship/ 下会多带 146 条 / 10.6 MB，
+#   其中 problem.pickle（2.2+1.2 MB）、c/（9.7 MB）都是可重生成的产物。
+#   【只留 .pyd 的原因】见文件上方 2026-09-28 事故记录：缺 .pyd 会静默回退
+#   cvxpy，solve_ms 从 ~0.08 s 恶化到 3441 ms。
+starship/cpg_p3/*
+starship/cpg_p4/*
+!starship/cpg_p3/cpg_module_p3*.pyd
+!starship/cpg_p4/cpg_module_p4*.pyd

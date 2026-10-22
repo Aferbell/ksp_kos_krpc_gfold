@@ -99,8 +99,120 @@ _TF4_PROBE_N = 16        # 最多探测次数（ 0.5*16 = 8 s 余量）
 #   解算耗时；燃料代价 ~0.7 t（tf 18.25->18.5 时 146.3->145.6 t）。
 #   相比"控制器追 84 deg 姿态导致失控"，这个代价可忽略。
 # ============================================================================
-_PLAN_TILT_MAX_DEG = 20.0   # 规划允许的峰值倾角 [deg]；超过则继续探测
+# ============================================================================
+# 【2026-10-08 改动 4：闸门阈值必须与锥角上限自洽（20 -> 35）】
+# ----------------------------------------------------------------------------
+# 【原设计】闸门阈值 20 deg，用于识别"最小时间退化解"。
+#   依据（2026-09-30）：非退化规划峰值倾角 4.2~16.3，退化解 57~84，
+#   20 落在两者之间的空档。
+#
+# 【改动 1 之后它失效了】锥角上限收到 35 deg 后，规划倾角【按构造】
+#   最多只能到 35 deg，于是：
+#     · "退化解 57~84 deg"这一档【不可能再出现】
+#     · 而正常解仍可能到 17~35 deg（受锥角约束而非退化）
+#   => 阈值 20 会拒绝一切、空探 16 次后【退回第一个可行解】
+#      （= 最小时间、最激进），恰恰是闸门当初想避免的结果。
+#   【实测证据】codegen 重生时打印：
+#       [gate] 探测 16 次未找到峰值倾角 <= 20.0 的可行规划，
+#              退回第一个可行 tf=11.75（其峰值倾角 35.0 deg）
+#
+# 【修法】阈值改为 35（= PCS_START_CAP_DEG）。
+#   实测（六趟真实交班状态，阈值 20 / 35 / 89 三档对比）：
+#       六趟选出的 tf 与峰值倾角【三档完全相同】
+#       （例：173443 -> tf=18.00 peak=17.46，三档一致）
+#   => 锥角上限本身已经承担了"约束姿态"的职责，
+#      闸门不再需要额外收紧；设为 35 后它【不再空探 16 次】，
+#      行为等价于"直接采信第一个可行解"，但保留了闸门的告警能力
+#      （若将来出现 > 35 的规划，说明锥角约束被绕过，会打印告警）。
+# ============================================================================
+_PLAN_TILT_MAX_DEG = 35.0   # = PCS_START_CAP_DEG，两者必须一致
 _PLAN_TILT_GATE = True      # 闸门开关（False = 旧行为：取第一个可行 tf）
+#   【一致性自检】阈值必须等于锥角上限，否则闸门会拒绝一切并空探 16 次
+#     （见下方"改动 4"的说明）。这里在模块加载时断言，避免两处常量漂移。
+#     断言放在 PCS_START_CAP_DEG 定义【之后】（见文件后部的一致性检查）。
+
+# ============================================================================
+# 【2026-10-08 改动 1+3：锥角上限统一到 35 度 + 把姿态动力学写进规划】
+# ----------------------------------------------------------------------------
+# 【改动 1 的动机（结构性不一致）】
+#   求解器的推力指向锥原为 85 -> 5 deg，而控制器的倾角上限是
+#   clamp(alt/3, 5, 35)。即【规划以为自己能倾 85 deg，控制器只允许 35】。
+#   规划用掉的自由度控制器兑现不了，实测 42~56% 的帧需求倾角被削平
+#   （五次试验：需求 p90 = 72~77 deg，而 cap = 35）。
+#   ⇒ 统一到 35 deg（= TILT_CAP_HI），让规划只规划【飞得出来】的东西。
+#
+# 【改动 3 的动机（规划默认姿态可瞬时跟随）】
+#   节点 0 的推力被强制竖直 => 其倾角恒为 0；而节点 1 可以立刻倾斜。
+#   实测节点 0->1 需要的角速率达 21~213 deg/s，而物理上限约 36 deg/s
+#   （alpha=14.6 deg/s^2, headroom=45deg）。规划要求了一个做不出来的动作。
+#
+# 【怎么把姿态动力学写成凸约束（关键设计）】
+#   锥角 ang(n) 是推力的【硬上界】，且节点 0 的倾角恒为 0。
+#   故若令
+#         ang(n) = min( cap(n), n * PCS_SLEW_DEG_PER_NODE )
+#   则规划自己的倾角必然满足 tilt(n) <= n*SLEW，
+#   于是 tilt(n+1)-tilt(n) <= SLEW —— 即【每节点最多张开 SLEW 度】。
+#   SLEW 是常数，ang(n) 全是常数 => 对 DCP/DPP 安全，cvxpygen 可生成。
+#   【为什么不用 omega*tf】tf 是 cvxpy Parameter，omega*tf*frac 是
+#     参数乘积 => 非凸，cvxpygen 无法生成。逐节点常数形式避开了这一点。
+#
+# 【SLEW 取值】物理角速率上限约 36 deg/s；P4 的 dt = tf/(N-1)，
+#   tf≈18 s / N=80 => dt≈0.228 s => SLEW ≈ 8.2 deg/node。
+#   取 8.0（略保守）。实测（五次真实交班状态）：
+#       无斜率限制: 峰值倾角 7.8~11.4，最大倾角速率 22.6~48.7 deg/s
+#       SLEW=8.0  : 峰值倾角 7.6~12.1，最大倾角速率 21.4~35.1 deg/s  <- 落入物理上限
+#   且【全部工况仍 optimal】（可行性未损失）。
+# ============================================================================
+PCS_START_CAP_DEG = 35.0        # 起点锥角上限（= 控制器 TILT_CAP_HI）
+PCS_SLEW_DEG_PER_NODE = 8.0     # 每节点允许张开的锥角 [deg/node]
+PCS_SLEW_ENABLE = True          # False = 退回"无斜率限制"的旧行为
+# ============================================================================
+# 【改动 1 的安全性兜底 —— 必须保留，否则会坠毁】
+# ----------------------------------------------------------------------------
+#   把起点锥角从 85 收到 35 会削弱"用大倾角快速消横速"的能力。
+#   实测（质量 152 t、alt=1163、vz=-80、水平偏移 100 m，tf=16/18/20/24）：
+#       vh  锥85              锥35
+#       10  18/20/24 ok       18/20/24 ok          <- 完全相同
+#       40  18/20/24 ok       18/20/24 ok          <- 完全相同
+#       80  tf=24 ok(35deg)   全部 infeasible      <- 差异！35 度丢了可行性
+#      120  全 infeasible     全 infeasible
+#   ⇒ 在 vh≈80 时，35 度锥会让 P4【无解】。
+#     而 P4 无解 => solve() 返回 None => nav_mode 停在 hold => 载具直接掉下去。
+#   【正常路径】kOS 交班门要求 vh < vh_gate = 10 m/s，故日常飞不到这个区域；
+#     但 kRPC 侧的兜底门只查 vmag<120（vh 可达 ~89），故必须防住。
+#   【兜底做法】35 度锥无解时，用【cvxpy 路径】(它能改锥角) 以 85 度重试一次。
+#     慢（~2 s）但只在异常工况发生，好过没有规划。
+# ============================================================================
+PCS_WIDE_FALLBACK_DEG = 85.0    # 35 度无解时的回退起点锥角 [deg]
+
+# ---- 一致性自检（改动 4）------------------------------------------------
+#   闸门阈值若不等于锥角上限，会拒绝一切解并空探 16 次后【退回最小时间解】
+#   —— 正是闸门想避免的结果。两个常量分处文件不同位置，容易漂移，
+#   故在加载时显式断言（改动 1 与改动 4 是绑定的）。
+assert abs(_PLAN_TILT_MAX_DEG - PCS_START_CAP_DEG) < 1e-09, (
+    '闸门阈值 _PLAN_TILT_MAX_DEG(%.1f) 必须等于锥角上限 '
+    'PCS_START_CAP_DEG(%.1f)：否则闸门会拒绝一切规划并退回最小时间解'
+    % (_PLAN_TILT_MAX_DEG, PCS_START_CAP_DEG))
+
+
+def _cone_deg(n, N, pcs_start, pcs_end, cap_deg=None, slew_deg=None):
+    """第 n 个节点的推力指向锥角上界 [deg]。
+
+    【两处限制取交】
+      · 线性锥：pcs_start -> pcs_end（n/(N-2) 插值）
+      · 姿态斜率：n * slew（节点 0 的倾角恒为 0，故以 0 为基准张开；
+          写成 n*slew 而不是 pcs_end + n*slew，否则节点 1 仍会跳出物理上限）
+      · 起点上限 cap（改动 1）
+    cap_deg / slew_deg 传 None 时用模块默认（兜底路径会传更宽的值）。
+    """
+    _cap = PCS_START_CAP_DEG if cap_deg is None else float(cap_deg)
+    _slew = PCS_SLEW_DEG_PER_NODE if slew_deg is None else slew_deg
+    frac = n / max(1, N - 2)
+    ang = float(pcs_start) + (float(pcs_end) - float(pcs_start)) * frac
+    ang = min(ang, _cap)
+    if PCS_SLEW_ENABLE and _slew is not None:
+        ang = min(ang, n * float(_slew))
+    return ang
 
 
 def _plan_peak_tilt_deg(u):
@@ -187,6 +299,69 @@ SELFCHECK_MASS = 156.9e3
 TERM_WIN = 0.40
 TERM_VZ = 4.0
 
+# ============================================================================
+# 【2026-10-09 S2：下降率包络按【入场垂直速度】决定 + 加速段时限】
+# ----------------------------------------------------------------------------
+# 【要解决的问题（用户实测指出）】
+#   上半段油门被压在很低的值，姿态权限不足（"缺姿态控制能力"）。
+#   实测两趟新日志：规划 39~66% 的节点 av_plan < g0，
+#   前 1/3 段平均竖直推力只有 5.1~7.5（悬停 9.81），
+#   而姿态权限 alpha 与推力近似成正比：低油门段 alpha p50=10.5，
+#   高油门段 22~27（差 2.05~2.65 倍）。
+#
+# 【根因：旧包络的巡航速度与入场速度无关】
+#   旧式 cap = min(v_descent_max, sqrt(2*a_brk*h_rem)+5)，
+#   高空时 sqrt 项远大于 v_descent_max，故【cap[0] 恒 = 80】，
+#   与入场 |vz0| 无关（实测 154838 入场仅 -24，cap[0] 仍是 80）。
+#   于是规划为了省油，从 |vz0| 一路【加速下降】到 80。
+#
+# 【为什么"加速下降段"必然意味着推力低于重力（关键物理）】
+#   竖直方向： av_up = g0 - d(vz)/dt
+#     · vz 恒定（匀速下降）   => av_up = g0      => 姿态权限满
+#     · |vz| 在变大（加速下降）=> d(vz)/dt < 0 => av_up < g0 => 权限不足
+#   而总下降量守恒要求  ∫(g0 - av_up)dt = |vz0|  —— 
+#   即【整段"权限亏欠"的总量被入场速度定死】，无法减少。
+#   唯一能做的是【不把这笔亏欠堆在早期】：旧包络把亏欠集中在
+#   前段加速下降里，后段又长时间高于 g0（权限过剩）——两头都不优。
+#
+# 【S2 的做法】
+#   让巡航下降率【随入场速度】取：
+#       vc = clamp(S2_RATIO * |vz0|, S2_VC_MIN, v_descent_max)
+#   则 |vz0| 大时 vc≈|vz0| => 几乎没有加速段 => 全程 av_up≈g0。
+#   再给"从 |vz0| 升到 vc"这段加【时限】：
+#       slew = (vc - |vz0|) / S2_ACCEL_T_MAX
+#   于是加速下降段【恰好不超过 S2_ACCEL_T_MAX 秒】。
+#
+# 【为什么必须给加速段设时限（实测，非理论）】
+#   取消时限（accel_t_max=1000，即立刻升到 vc）会让
+#   【浅入场】工况直接 P3 infeasible：
+#       154838（入场 vz=-24）：accel_t_max=3/6/12 s 均 optimal，
+#                                accel_t_max=1000 => p3 infeasible
+#   因为浅入场时 vc 与 |vz0| 差距大（24 -> 50），
+#   立刻允许 50 会让"节点 0 必须满足 |vz|=24"与包络自相矛盾。
+#   取 6 s 既留出过渡，又把加速段限住。
+#
+# 【实测效果（4 个真实交班状态，S2_RATIO=1.05 / VC_MIN=50 / ACCEL_T=6）】
+#   工况        前1/3段平均 av_up        低推力帧占比
+#               旧      新              旧     新
+#   154838     5.13 -> 7.32            55% -> 39%
+#   160001     8.06 -> 9.25            31% -> 28%
+#   150743     7.11 -> 9.32            28% -> 28%
+#   151358     7.41 -> 9.29            32% -> 19%
+#   代价：tf 18.75~19.75 -> 22.25~30.75，落地质量 -0.8~-1.7 t
+#   （154838 是浅入场 24 m/s，代价最大：tf 23.25->30.75；
+#     它也是姿态权限最差的一趟，5.13 -> 7.32 改善最大。）
+#
+# 【为什么不需要重生 codegen】
+#   包络在 codegen 模型里是【运行时 Parameter】(vdesc_cap)，不是编译期
+#   常量（只有锥角和油门下限是固化的）。故改这里【不需要】重跑
+#   gen_codegen.ps1。已实测确认。
+# ============================================================================
+S2_RATIO = 1.05           # vc = S2_RATIO * |vz0|（随入场速度变化）
+S2_VC_MIN = 50.0          # vc 下限 [m/s]：太低的巡航速度会让 P3 无解
+S2_ACCEL_T_MAX = 6.0      # 从 |vz0| 升到 vc 的时限 [s]（用户要求③）
+S2_ENABLE = True          # False = 退回旧行为（vc 恒 = v_descent_max）
+
 
 def vdesc_cap_vector(N, h, vz, mass, t_max, tf, isp=315.0,
                      v_descent_max=None, term_win=TERM_WIN, term_vz=TERM_VZ,
@@ -248,6 +423,20 @@ def vdesc_cap_vector(N, h, vz, mass, t_max, tf, isp=315.0,
     cap0 = abs(float(vz))
     vdm = float(v_descent_max)
     H = max(0.0, float(h))
+    # ================================================================
+    # 【2026-10-09 S2】巡航下降率随入场速度，并给加速段加时限。
+    #   旧行为： vc = vdm（恒 80，与入场无关）  => 长加速段 => 低推力
+    #   新行为： vc = clamp(ratio*|vz0|, vc_min, vdm)
+    #           slew = (vc - |vz0|)/accel_t_max   （只在 vc > |vz0| 时）
+    #   详见上方 S2_* 常量的长注释（含物理推导与实测表）。
+    # ================================================================
+    _slew = None
+    if S2_ENABLE:
+        vc = min(vdm, max(float(S2_VC_MIN), float(S2_RATIO) * cap0))
+        if vc > cap0 and float(S2_ACCEL_T_MAX) > 1e-6:
+            _slew = (vc - cap0) / float(S2_ACCEL_T_MAX)
+    else:
+        vc = vdm
     caps = np.zeros(N)
     for n in range(N):
         t = n * dt
@@ -257,7 +446,11 @@ def vdesc_cap_vector(N, h, vz, mass, t_max, tf, isp=315.0,
         # ① 初速：在能按 a_brk 减速的前提下，允许从 |vz0| 开始下降
         #      ramp = |vz0| - a_brk·t（下限）；下降率上限不能低于它
         ramp = cap0 - a_brk * t
-        cap = min(vdm, env)
+        cap = min(vc, env)
+        # ② S2：加速下降段的时限（cap 从 |vz0| 线性升到 vc）
+        #    注意基准是 cap0（即 |vz0|），不是 vc —— 否则斜率无意义
+        if _slew is not None:
+            cap = min(cap, cap0 + _slew * t)
         cap = max(cap, ramp)
         if n == 0:
             cap = max(cap, cap0)
@@ -581,7 +774,8 @@ def _fail(status, tf=-1.0, **extra):
 def _solve_one(program, x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
                v_max, N, straight_fac, target_alt, pcs_start_deg=None,
                verbose=False, v_descent_max=None,
-               term_win=TERM_WIN, term_vz=TERM_VZ):
+               term_win=TERM_WIN, term_vz=TERM_VZ,
+               cone_cap_deg=None, cone_slew_deg=None):
     """对应原版 GFOLD_direct_exec.GFOLD_direct(N, pmark, packed_data)。
 
     【第二步新增】v_descent_max / term_win / term_vz 控制【下降率包络】：
@@ -704,8 +898,11 @@ def _solve_one(program, x0, mass, isp, t_max, throttle, tf, gs_deg, pcs_deg,
         else:
             # 项目修正（坑①）：锥角按时序从宽收到窄，而不是全程固定。
             #   原版固定 p_cs；本项目入场横速大，全程固定会 infeasible。
-            frac = n / max(1, N - 2)
-            ang = np.radians(pcs_start_deg + (pcs_deg - pcs_start_deg) * frac)
+            # 【2026-10-08 改动 1+3】加上起点上限与每节点斜率限制，
+            #   见 _cone_deg() 与文件顶部 PCS_START_CAP_DEG 的说明。
+            #   cone_cap_deg / cone_slew_deg 供"宽锥兜底"路径覆盖默认值。
+            ang = np.radians(_cone_deg(n, N, pcs_start_deg, pcs_deg,
+                                       cone_cap_deg, cone_slew_deg))
             con += [u[0, n] >= np.cos(ang) * s[0, n]]
         # 地面以下禁止（原版注释掉了，本项目保留：防止"先落地再飞起"）
         con += [x[0, n] >= 0]
@@ -1059,6 +1256,35 @@ def _solve_p3p4_impl(x0, mass, isp=315.0, t_max=8.99e6,
                         v_descent_max=v_descent_max, term_win=term_win,
                         term_vz=term_vz)
         r4['engine'] = 'cvxpy'
+    # ================================================================
+    # 【2026-10-08 改动 1 兜底：35 度锥无解时用宽锥重试（cvxpy 路径）】
+    # ----------------------------------------------------------------
+    #   【为什么必须有】35 度起点锥在 vh≈80 的入场状态下会让 P4 infeasible
+    #     （实测；85 度在同工况 tf=24 有解）。而 P4 无解 => solve() 返回 None
+    #     => nav_mode 停在 hold => 载具直接掉下去（坠毁）。
+    #     正常路径飞不到这里（kOS 交班门 vh<10），但 kRPC 兜底门只查
+    #     vmag<120（vh 可达 ~89），故必须防住。
+    #   【代价】cvxpy 路径约 2 s（cgen 0.06 s），但只在异常工况触发。
+    #   【注意】走 cvxpy 才能改锥角 —— codegen 的锥角是【编译期固化】的，
+    #     给它传不同 pcs_start 会被静默忽略。
+    # ================================================================
+    if (r4['status'] != 'optimal' and PCS_START_CAP_DEG < 89.0):
+        print('[cone] 起点锥 %.0f deg 无解（vh 可能偏大），'
+              '用 %.0f deg 宽锥重试'
+              % (PCS_START_CAP_DEG, PCS_WIDE_FALLBACK_DEG))
+        r4w = _solve_one(4, np.asarray(x0, float), mass, isp, t_max, throttle,
+                         tf4, gs_deg, pcs_deg, v_max, N4, straight_fac,
+                         target_alt, pcs_start_deg=pcs_start_deg,
+                         verbose=verbose, v_descent_max=v_descent_max,
+                         term_win=term_win, term_vz=term_vz,
+                         cone_cap_deg=PCS_WIDE_FALLBACK_DEG,
+                         cone_slew_deg=None)
+        if r4w['status'] == 'optimal':
+            r4w['engine'] = 'cvxpy-widecone'
+            r4 = r4w
+            print('[cone] 宽锥重试成功 tf=%.2f' % tf4)
+        else:
+            print('[cone] 宽锥重试仍失败（%s）' % r4w['status'])
     if r4['status'] != 'optimal':
         return _fail(f'p4 {r4["status"]}', tf4, stage='p4', tf_m=tf_m)
 

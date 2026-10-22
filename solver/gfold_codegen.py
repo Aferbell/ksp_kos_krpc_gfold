@@ -41,6 +41,11 @@ from gfold_p3p4 import (G0, vdesc_cap_vector,          # noqa: E402
                         V_DESCENT_MAX, SELFCHECK_VDESC,
                         SELFCHECK_H, SELFCHECK_Y, SELFCHECK_VZ,
                         SELFCHECK_VH, SELFCHECK_MASS)
+# 【2026-10-08 改动 1+3】锥角上限与每节点斜率限制【从求解侧导入】，
+#   而不是各写一份常量 —— 两份常量一定会漂移，而两边不一致会让
+#   cvxpy 路径与 codegen 路径解出不同形状的轨迹（历史事故）。
+from gfold_p3p4 import (PCS_START_CAP_DEG,             # noqa: E402
+                        PCS_SLEW_DEG_PER_NODE, PCS_SLEW_ENABLE)
 
 # ---- 生成时固化的模型参数（与 gfold_p3p4 的默认保持一致）----
 # 【N 必须与求解侧一致】生成的 C 模型把节点数【编译期固化】：
@@ -253,11 +258,23 @@ def build(program, N=None, tf=TF_GEN):
         con += [z[0, n + 1] == z[0, n]
                 - (alpha_dt * 0.5) * (s[0, n] + s[0, n + 1])]
         con += [cp.norm(u[:, n]) <= s[0, n]]
-        frac = n / max(1, N - 2)
         # 【按程序取末端锥角】P3 用 30（保 tf_m），P4 用 5（保触地姿态）。
         #   理由见文件顶部 PCS_END_DEG_P3/P4 的 A/B 实测表。
         _pcs_end = PCS_END_DEG_P3 if program == 3 else PCS_END_DEG_P4
-        ang = np.radians(PCS_START_DEG + (_pcs_end - PCS_START_DEG) * frac)
+        # 【2026-10-08 改动 1+3】与 gfold_p3p4._cone_deg 完全一致：
+        #   起点上限 35 度（统一到控制器 TILT_CAP_HI）+ 每节点张开 <= SLEW 度
+        #   （把姿态角速率上限写进规划）。
+        #   【必须与求解侧同步】两边不一致会让 cvxpy 路径与 codegen 路径
+        #   解出不同形状的轨迹（历史教训见文件顶部 PCS_END_DEG 的说明）。
+        ang_deg = PCS_START_DEG + (_pcs_end - PCS_START_DEG) * frac
+        #   【注意 frac 是【向量】】（np.linspace 的结果），故必须用
+        #     np.minimum 而不是内置 min —— 后者对数组会抛
+        #     "truth value of an array is ambiguous"。
+        #     取值时 ang_deg[n] 是标量，与 gfold_p3p4._cone_deg 逐点一致。
+        ang_deg = np.minimum(ang_deg, PCS_START_CAP_DEG)
+        if PCS_SLEW_ENABLE:
+            ang_deg = np.minimum(ang_deg, n * PCS_SLEW_DEG_PER_NODE)
+        ang = np.radians(ang_deg[n])
         con += [u[0, n] >= np.cos(ang) * s[0, n]]
         con += [x[0, n] >= 0]
         # ================================================================
